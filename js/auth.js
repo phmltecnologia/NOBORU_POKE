@@ -17,18 +17,91 @@
     localStorage.setItem(USERS_KEY, JSON.stringify(list));
   }
 
+  function normalizePhone(s) {
+    return String(s || "").replace(/\D/g, "");
+  }
+
+  function isValidPhoneDigits(digits) {
+    return digits.length >= 10 && digits.length <= 13;
+  }
+
   function normalizeEmail(s) {
     return String(s || "")
       .trim()
       .toLowerCase();
   }
 
-  function normalizePhone(s) {
-    return String(s || "").replace(/\D/g, "");
+  /** Normaliza para YYYY-MM-DD (aceita input type=date ou DD/MM/AAAA) */
+  function normalizeBirthDate(s) {
+    var raw = String(s || "").trim();
+    if (!raw) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    var digits = raw.replace(/\D/g, "");
+    if (digits.length === 8) {
+      var d = parseInt(digits.slice(0, 2), 10);
+      var m = parseInt(digits.slice(2, 4), 10);
+      var y = parseInt(digits.slice(4, 8), 10);
+      if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1900 && y <= 2100) {
+        return (
+          String(y) +
+          "-" +
+          String(m).padStart(2, "0") +
+          "-" +
+          String(d).padStart(2, "0")
+        );
+      }
+    }
+    return "";
+  }
+
+  function isValidBirthDate(iso) {
+    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+    var parts = iso.split("-");
+    var y = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10);
+    var d = parseInt(parts[2], 10);
+    if (y < 1900 || y > new Date().getFullYear()) return false;
+    if (m < 1 || m > 12 || d < 1 || d > 31) return false;
+    var dt = new Date(y, m - 1, d);
+    return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+  }
+
+  function formatBirthDateBR(iso) {
+    if (!iso || iso.indexOf("-") === -1) return iso || "";
+    var p = iso.split("-");
+    return p[2] + "/" + p[1] + "/" + p[0];
+  }
+
+  function fullName(user) {
+    var first = String(user.firstName || "").trim();
+    var last = String(user.lastName || "").trim();
+    if (first || last) return (first + " " + last).trim();
+    return String(user.name || "").trim();
+  }
+
+  function splitLegacyName(name) {
+    var parts = String(name || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (!parts.length) return { firstName: "", lastName: "" };
+    if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+    return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+  }
+
+  function findByPhone(phone) {
+    var p = normalizePhone(phone);
+    if (!p) return null;
+    var list = getUsers();
+    for (var i = 0; i < list.length; i++) {
+      if (normalizePhone(list[i].phone) === p) return { user: list[i], index: i };
+    }
+    return null;
   }
 
   function findByEmail(email) {
     var e = normalizeEmail(email);
+    if (!e) return null;
     var list = getUsers();
     for (var i = 0; i < list.length; i++) {
       if (normalizeEmail(list[i].email) === e) return { user: list[i], index: i };
@@ -36,60 +109,129 @@
     return null;
   }
 
+  function resolveSessionUser(sessionValue) {
+    if (!sessionValue) return null;
+    var byPhone = findByPhone(sessionValue);
+    if (byPhone) return byPhone;
+    if (sessionValue.indexOf("@") !== -1) {
+      return findByEmail(sessionValue);
+    }
+    return null;
+  }
+
+  function setSessionForUser(user) {
+    localStorage.setItem(SESSION_KEY, normalizePhone(user.phone));
+  }
+
+  function birthDateMatches(user, input) {
+    var iso = normalizeBirthDate(input);
+    if (!iso) return false;
+    if (user.birthDate) {
+      return user.birthDate === iso;
+    }
+    if (user.password) {
+      return user.password === iso || user.password === input;
+    }
+    return false;
+  }
+
+  function buildAddress(data) {
+    return {
+      cep: String(data.cep).trim(),
+      street: String(data.street).trim(),
+      number: String(data.number).trim(),
+      complement: String(data.complement || "").trim(),
+      neighborhood: String(data.neighborhood).trim(),
+      city: String(data.city).trim(),
+    };
+  }
+
+  function validateAddress(data) {
+    if (!String(data.street || "").trim()) return "Informe o logradouro.";
+    if (!String(data.number || "").trim()) return "Informe o número.";
+    if (!String(data.neighborhood || "").trim()) return "Informe o bairro.";
+    if (!String(data.city || "").trim()) return "Informe a cidade.";
+    if (!String(data.cep || "").trim()) return "Informe o CEP.";
+    return null;
+  }
+
+  function userToPublic(u) {
+    var addr = u.address;
+    var copy = addr
+      ? {
+          cep: addr.cep,
+          street: addr.street,
+          number: addr.number,
+          complement: addr.complement,
+          neighborhood: addr.neighborhood,
+          city: addr.city,
+        }
+      : null;
+    var legacy = splitLegacyName(u.name);
+    return {
+      firstName: u.firstName || legacy.firstName,
+      lastName: u.lastName || legacy.lastName,
+      name: fullName(u),
+      phone: u.phone,
+      birthDate: u.birthDate || "",
+      birthDateBR: formatBirthDateBR(u.birthDate || ""),
+      address: copy,
+    };
+  }
+
   function register(data) {
-    var email = normalizeEmail(data.email);
-    if (!email) return { ok: false, error: "Informe um e-mail." };
-    if (findByEmail(email)) return { ok: false, error: "Este e-mail já está cadastrado." };
-    if (!data.password || data.password.length < 4) {
-      return { ok: false, error: "A senha deve ter pelo menos 4 caracteres." };
+    var phoneDigits = normalizePhone(data.phone);
+    if (!phoneDigits) return { ok: false, error: "Informe o telefone." };
+    if (!isValidPhoneDigits(phoneDigits)) {
+      return { ok: false, error: "Informe um telefone válido (com DDD, 10 ou 11 dígitos)." };
     }
-    if (data.password !== data.passwordConfirm) {
-      return { ok: false, error: "As senhas não coincidem." };
+    if (findByPhone(phoneDigits)) {
+      return { ok: false, error: "Este telefone já está cadastrado." };
     }
-    if (!String(data.name || "").trim()) return { ok: false, error: "Informe o nome completo." };
-    if (!String(data.phone || "").trim()) return { ok: false, error: "Informe o telefone." };
-    if (!String(data.street || "").trim()) return { ok: false, error: "Informe o logradouro." };
-    if (!String(data.number || "").trim()) return { ok: false, error: "Informe o número." };
-    if (!String(data.neighborhood || "").trim()) return { ok: false, error: "Informe o bairro." };
-    if (!String(data.city || "").trim()) return { ok: false, error: "Informe a cidade." };
-    if (!String(data.state || "").trim() || String(data.state).length !== 2) {
-      return { ok: false, error: "Informe a UF com 2 letras (ex.: SC)." };
+
+    var firstName = String(data.firstName || "").trim();
+    var lastName = String(data.lastName || "").trim();
+    if (!firstName) return { ok: false, error: "Informe o nome." };
+    if (!lastName) return { ok: false, error: "Informe o sobrenome." };
+
+    var birthIso = normalizeBirthDate(data.birthDate);
+    if (!birthIso || !isValidBirthDate(birthIso)) {
+      return { ok: false, error: "Informe uma data de nascimento válida." };
     }
-    if (!String(data.cep || "").trim()) return { ok: false, error: "Informe o CEP." };
+
+    var addrErr = validateAddress(data);
+    if (addrErr) return { ok: false, error: addrErr };
 
     var user = {
-      email: email,
-      password: data.password,
-      name: String(data.name).trim(),
+      firstName: firstName,
+      lastName: lastName,
+      birthDate: birthIso,
       phone: String(data.phone).trim(),
-      address: {
-        cep: String(data.cep).trim(),
-        street: String(data.street).trim(),
-        number: String(data.number).trim(),
-        complement: String(data.complement || "").trim(),
-        neighborhood: String(data.neighborhood).trim(),
-        city: String(data.city).trim(),
-        state: String(data.state)
-          .trim()
-          .toUpperCase()
-          .slice(0, 2),
-      },
+      address: buildAddress(data),
     };
 
     var list = getUsers();
     list.push(user);
     setUsers(list);
-    localStorage.setItem(SESSION_KEY, user.email);
+    setSessionForUser(user);
     return { ok: true };
   }
 
-  function login(email, password) {
-    var found = findByEmail(email);
-    if (!found) return { ok: false, error: "E-mail ou senha incorretos." };
-    if (found.user.password !== password) {
-      return { ok: false, error: "E-mail ou senha incorretos." };
+  function login(phone, birthDateInput) {
+    var digits = normalizePhone(phone);
+    if (!digits) return { ok: false, error: "Informe o telefone." };
+
+    var found = findByPhone(digits);
+    if (!found && String(phone || "").indexOf("@") !== -1) {
+      found = findByEmail(phone);
     }
-    localStorage.setItem(SESSION_KEY, found.user.email);
+    if (!found) {
+      return { ok: false, error: "Telefone ou data de nascimento incorretos." };
+    }
+    if (!birthDateMatches(found.user, birthDateInput)) {
+      return { ok: false, error: "Telefone ou data de nascimento incorretos." };
+    }
+    setSessionForUser(found.user);
     return { ok: true };
   }
 
@@ -103,27 +245,13 @@
 
   function getCurrentUser() {
     if (!isLoggedIn()) return null;
-    var email = localStorage.getItem(SESSION_KEY);
-    var found = findByEmail(email);
+    var session = localStorage.getItem(SESSION_KEY);
+    var found = resolveSessionUser(session);
     if (!found) {
       logout();
       return null;
     }
-    var u = found.user;
-    var addr = u.address;
-    var copy =
-      addr
-        ? {
-            cep: addr.cep,
-            street: addr.street,
-            number: addr.number,
-            complement: addr.complement,
-            neighborhood: addr.neighborhood,
-            city: addr.city,
-            state: addr.state,
-          }
-        : null;
-    return { email: u.email, name: u.name, phone: u.phone, address: copy };
+    return userToPublic(found.user);
   }
 
   function getCurrentUserForMessage() {
@@ -131,28 +259,27 @@
   }
 
   function resetPassword(data) {
-    var email = normalizeEmail(data.email);
-    if (!email) return { ok: false, error: "Informe o e-mail." };
-    var found = findByEmail(email);
+    var phoneDigits = normalizePhone(data.phone);
+    if (!phoneDigits) return { ok: false, error: "Informe o telefone." };
+    if (!isValidPhoneDigits(phoneDigits)) {
+      return { ok: false, error: "Informe um telefone válido (com DDD, 10 ou 11 dígitos)." };
+    }
+    var found = findByPhone(phoneDigits);
     if (!found) {
-      return { ok: false, error: "Não encontramos uma conta com este e-mail." };
+      return { ok: false, error: "Não encontramos uma conta com este telefone." };
     }
 
-    var phoneIn = normalizePhone(data.phone);
-    if (!phoneIn) return { ok: false, error: "Informe o telefone cadastrado." };
-    if (normalizePhone(found.user.phone) !== phoneIn) {
-      return { ok: false, error: "O telefone não confere com o cadastro." };
+    var birthIso = normalizeBirthDate(data.birthDate);
+    var confirmIso = normalizeBirthDate(data.birthDateConfirm);
+    if (!birthIso || !isValidBirthDate(birthIso)) {
+      return { ok: false, error: "Informe uma data de nascimento válida." };
+    }
+    if (birthIso !== confirmIso) {
+      return { ok: false, error: "As datas de nascimento não coincidem." };
     }
 
-    var pw = String(data.password || "");
-    if (pw.length < 4) {
-      return { ok: false, error: "A senha deve ter pelo menos 4 caracteres." };
-    }
-    if (pw !== String(data.passwordConfirm || "")) {
-      return { ok: false, error: "As senhas não coincidem." };
-    }
-
-    found.user.password = pw;
+    found.user.birthDate = birthIso;
+    delete found.user.password;
     var list = getUsers();
     list[found.index] = found.user;
     setUsers(list);
@@ -161,57 +288,62 @@
 
   function updateProfile(data) {
     if (!isLoggedIn()) return { ok: false, error: "Não autenticado." };
-    var sessionEmail = localStorage.getItem(SESSION_KEY);
-    var found = findByEmail(sessionEmail);
+    var session = localStorage.getItem(SESSION_KEY);
+    var found = resolveSessionUser(session);
     if (!found) {
       logout();
       return { ok: false, error: "Sessão inválida. Faça login de novo." };
     }
 
-    if (!String(data.name || "").trim()) return { ok: false, error: "Informe o nome completo." };
+    var firstName = String(data.firstName || "").trim();
+    var lastName = String(data.lastName || "").trim();
+    if (!firstName) return { ok: false, error: "Informe o nome." };
+    if (!lastName) return { ok: false, error: "Informe o sobrenome." };
     if (!String(data.phone || "").trim()) return { ok: false, error: "Informe o telefone." };
-    if (!String(data.street || "").trim()) return { ok: false, error: "Informe o logradouro." };
-    if (!String(data.number || "").trim()) return { ok: false, error: "Informe o número." };
-    if (!String(data.neighborhood || "").trim()) return { ok: false, error: "Informe o bairro." };
-    if (!String(data.city || "").trim()) return { ok: false, error: "Informe a cidade." };
-    if (!String(data.state || "").trim() || String(data.state).length !== 2) {
-      return { ok: false, error: "Informe a UF com 2 letras (ex.: SC)." };
-    }
-    if (!String(data.cep || "").trim()) return { ok: false, error: "Informe o CEP." };
 
-    var newPw = (data.newPassword || "").trim();
-    if (newPw) {
-      if (newPw.length < 4) {
-        return { ok: false, error: "A nova senha deve ter pelo menos 4 caracteres." };
-      }
-      if (newPw !== (data.newPasswordConfirm || "")) {
-        return { ok: false, error: "A confirmação da nova senha não confere." };
-      }
-      if ((data.currentPassword || "") !== found.user.password) {
-        return { ok: false, error: "Senha atual incorreta." };
+    var newDigits = normalizePhone(data.phone);
+    if (!isValidPhoneDigits(newDigits)) {
+      return { ok: false, error: "Informe um telefone válido (com DDD, 10 ou 11 dígitos)." };
+    }
+    var currentDigits = normalizePhone(found.user.phone);
+    if (newDigits !== currentDigits) {
+      var other = findByPhone(newDigits);
+      if (other && other.index !== found.index) {
+        return { ok: false, error: "Este telefone já está em uso por outra conta." };
       }
     }
+
+    var addrErr = validateAddress(data);
+    if (addrErr) return { ok: false, error: addrErr };
 
     var u = found.user;
-    u.name = String(data.name).trim();
+    u.firstName = firstName;
+    u.lastName = lastName;
+    delete u.name;
     u.phone = String(data.phone).trim();
-    u.address = {
-      cep: String(data.cep).trim(),
-      street: String(data.street).trim(),
-      number: String(data.number).trim(),
-      complement: String(data.complement || "").trim(),
-      neighborhood: String(data.neighborhood).trim(),
-      city: String(data.city).trim(),
-      state: String(data.state)
-        .trim()
-        .toUpperCase()
-        .slice(0, 2),
-    };
-    if (newPw) u.password = newPw;
+    delete u.email;
+
+    if (data.birthDate) {
+      var newBirth = normalizeBirthDate(data.birthDate);
+      if (!newBirth || !isValidBirthDate(newBirth)) {
+        return { ok: false, error: "Informe uma data de nascimento válida." };
+      }
+      if (!data.currentBirthDate) {
+        return { ok: false, error: "Informe a data de nascimento atual para alterá-la." };
+      }
+      if (!birthDateMatches(u, data.currentBirthDate)) {
+        return { ok: false, error: "A data de nascimento atual não confere." };
+      }
+      u.birthDate = newBirth;
+      delete u.password;
+    }
+
+    u.address = buildAddress(data);
 
     var list = getUsers();
     list[found.index] = u;
     setUsers(list);
+    setSessionForUser(u);
     return { ok: true };
   }
 
@@ -223,5 +355,7 @@
     getCurrentUser: getCurrentUser,
     updateProfile: updateProfile,
     resetPassword: resetPassword,
+    normalizeBirthDate: normalizeBirthDate,
+    formatBirthDateBR: formatBirthDateBR,
   };
 })();

@@ -353,7 +353,6 @@
         parts.push("");
         parts.push("*Cliente:* " + u.name);
         parts.push("Telefone: " + u.phone);
-        parts.push("E-mail: " + u.email);
         var a = u.address;
         if (a) {
           var end =
@@ -365,8 +364,6 @@
             a.neighborhood +
             " — " +
             a.city +
-            "/" +
-            a.state +
             " — CEP " +
             a.cep;
           parts.push("Endereço: " + end);
@@ -583,7 +580,6 @@
     document.getElementById("addr-complement").value = a.complement || "";
     document.getElementById("addr-neighborhood").value = a.neighborhood || "";
     document.getElementById("addr-city").value = a.city || "";
-    document.getElementById("addr-state").value = a.state || "";
     var msg = document.getElementById("addr-msg");
     if (msg) msg.textContent = "";
 
@@ -615,7 +611,6 @@
     var backBtn = document.getElementById("addr-back");
     var form = document.getElementById("addr-form");
     var cep = document.getElementById("addr-cep");
-    var st = document.getElementById("addr-state");
     var msg = document.getElementById("addr-msg");
 
     function show(t, isErr) {
@@ -636,12 +631,6 @@
         else cep.value = d.slice(0, 5) + "-" + d.slice(5);
       });
     }
-    if (st) {
-      st.addEventListener("input", function () {
-        st.value = st.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
-      });
-    }
-
     overlay.addEventListener("click", function (e) {
       if (e.target === overlay) closeAddrModal();
     });
@@ -666,7 +655,8 @@
         var u = Auth.getCurrentUser();
         if (!u) return;
         var data = {
-          name: u.name,
+          firstName: u.firstName,
+          lastName: u.lastName,
           phone: u.phone,
           cep: document.getElementById("addr-cep").value,
           street: document.getElementById("addr-street").value,
@@ -674,10 +664,6 @@
           complement: document.getElementById("addr-complement").value,
           neighborhood: document.getElementById("addr-neighborhood").value,
           city: document.getElementById("addr-city").value,
-          state: document.getElementById("addr-state").value,
-          currentPassword: "",
-          newPassword: "",
-          newPasswordConfirm: "",
         };
         var r = Auth.updateProfile(data);
         if (!r.ok) {

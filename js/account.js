@@ -17,9 +17,10 @@
     if (!u) return;
     showMsg("");
 
-    document.getElementById("acc-name").value = u.name || "";
-    document.getElementById("acc-email").value = u.email || "";
+    document.getElementById("acc-firstname").value = u.firstName || "";
+    document.getElementById("acc-lastname").value = u.lastName || "";
     document.getElementById("acc-phone").value = u.phone || "";
+    document.getElementById("acc-birthdate").value = u.birthDate || "";
     var a = u.address || {};
     document.getElementById("acc-cep").value = a.cep || "";
     document.getElementById("acc-street").value = a.street || "";
@@ -27,10 +28,12 @@
     document.getElementById("acc-complement").value = a.complement || "";
     document.getElementById("acc-neighborhood").value = a.neighborhood || "";
     document.getElementById("acc-city").value = a.city || "";
-    document.getElementById("acc-state").value = a.state || "";
-    document.getElementById("acc-pass-current").value = "";
-    document.getElementById("acc-pass-new").value = "";
-    document.getElementById("acc-pass-new2").value = "";
+    var curBirth = document.getElementById("acc-birthdate-current");
+    var newBirth = document.getElementById("acc-birthdate-new");
+    var newBirth2 = document.getElementById("acc-birthdate-new2");
+    if (curBirth) curBirth.value = "";
+    if (newBirth) newBirth.value = "";
+    if (newBirth2) newBirth2.value = "";
 
     overlay.hidden = false;
     overlay.setAttribute("aria-hidden", "false");
@@ -67,12 +70,6 @@
       else cep.value = d.slice(0, 5) + "-" + d.slice(5);
     });
   }
-  var st = document.getElementById("acc-state");
-  if (st) {
-    st.addEventListener("input", function () {
-      st.value = st.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
-    });
-  }
 
   var btnAcc = document.getElementById("btn-account");
   if (btnAcc) {
@@ -95,9 +92,10 @@
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
-    var newP = (document.getElementById("acc-pass-new").value || "").trim();
+    var newBirth = (document.getElementById("acc-birthdate-new") || {}).value || "";
     var data = {
-      name: document.getElementById("acc-name").value,
+      firstName: document.getElementById("acc-firstname").value,
+      lastName: document.getElementById("acc-lastname").value,
       phone: document.getElementById("acc-phone").value,
       cep: document.getElementById("acc-cep").value,
       street: document.getElementById("acc-street").value,
@@ -105,27 +103,25 @@
       complement: document.getElementById("acc-complement").value,
       neighborhood: document.getElementById("acc-neighborhood").value,
       city: document.getElementById("acc-city").value,
-      state: document.getElementById("acc-state").value,
-      currentPassword: document.getElementById("acc-pass-current").value,
-      newPassword: newP,
-      newPasswordConfirm: document.getElementById("acc-pass-new2").value,
     };
-    if (newP && !data.currentPassword) {
-      showMsg("Para definir uma nova senha, informe a senha atual.", true);
-      return;
-    }
-    if (!newP) {
-      data.newPassword = "";
-      data.newPasswordConfirm = "";
-      data.currentPassword = "";
+    if (newBirth) {
+      var confirmBirth = (document.getElementById("acc-birthdate-new2") || {}).value || "";
+      if (newBirth !== confirmBirth) {
+        showMsg("A confirmação da nova data de nascimento não confere.", true);
+        return;
+      }
+      var currentBirth = (document.getElementById("acc-birthdate-current") || {}).value || "";
+      if (!currentBirth) {
+        showMsg("Para alterar a data de nascimento, informe a data atual.", true);
+        return;
+      }
+      data.birthDate = newBirth;
+      data.currentBirthDate = currentBirth;
     }
     var r = Auth.updateProfile(data);
     if (r.ok) {
       showMsg("Dados salvos com sucesso.");
       updateGreeting();
-      document.getElementById("acc-pass-current").value = "";
-      document.getElementById("acc-pass-new").value = "";
-      document.getElementById("acc-pass-new2").value = "";
       setTimeout(function () {
         closeModal();
       }, 800);
@@ -133,10 +129,6 @@
       showMsg(r.error, true);
     }
   });
-
-  if (window.PasswordFields) {
-    PasswordFields.init(form);
-  }
 
   if (typeof window !== "undefined") {
     window.__account = { openModal: openModal, updateGreeting: updateGreeting };

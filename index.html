@@ -45,21 +45,27 @@
         <h2 class="account-modal__title" id="account-title">Minha conta</h2>
         <button type="button" class="account-modal__close" id="account-close" aria-label="Fechar">×</button>
       </div>
-      <p class="account-modal__lead">Visualize e atualize seus dados. O e-mail de login não pode ser alterado.</p>
+      <p class="account-modal__lead">Telefone e data de nascimento são usados para entrar na conta.</p>
       <div class="account-msg" id="account-msg" role="status" aria-live="polite"></div>
       <form class="account-form" id="account-form" novalidate>
         <p class="auth__sectionlabel">Dados pessoais</p>
-        <div class="field">
-          <label for="acc-name" class="field__label">Nome completo</label>
-          <input class="field__input" type="text" id="acc-name" name="name" autocomplete="name" required />
-        </div>
-        <div class="field">
-          <label for="acc-email" class="field__label">E-mail (login)</label>
-          <input class="field__input field__input--readonly" type="email" id="acc-email" readonly tabindex="-1" />
+        <div class="field-row">
+          <div class="field field--half">
+            <label for="acc-firstname" class="field__label">Nome</label>
+            <input class="field__input" type="text" id="acc-firstname" name="firstName" autocomplete="given-name" required />
+          </div>
+          <div class="field field--half">
+            <label for="acc-lastname" class="field__label">Sobrenome</label>
+            <input class="field__input" type="text" id="acc-lastname" name="lastName" autocomplete="family-name" required />
+          </div>
         </div>
         <div class="field">
           <label for="acc-phone" class="field__label">Telefone (WhatsApp)</label>
-          <input class="field__input" type="tel" id="acc-phone" name="phone" autocomplete="tel" required />
+          <input class="field__input" type="tel" id="acc-phone" name="phone" autocomplete="tel" inputmode="tel" required />
+        </div>
+        <div class="field">
+          <label for="acc-birthdate" class="field__label">Data de nascimento (login)</label>
+          <input class="field__input field__input--readonly" type="date" id="acc-birthdate" readonly tabindex="-1" />
         </div>
 
         <p class="auth__sectionlabel">Endereço</p>
@@ -87,31 +93,25 @@
           <label for="acc-neighborhood" class="field__label">Bairro</label>
           <input class="field__input" type="text" id="acc-neighborhood" name="neighborhood" required />
         </div>
-        <div class="field-row">
-          <div class="field field--two-thirds">
-            <label for="acc-city" class="field__label">Cidade</label>
-            <input class="field__input" type="text" id="acc-city" name="city" required />
-          </div>
-          <div class="field field--third">
-            <label for="acc-state" class="field__label">UF</label>
-            <input class="field__input field__input--uf" type="text" id="acc-state" name="state" maxlength="2" placeholder="SC" required />
-          </div>
+        <div class="field">
+          <label for="acc-city" class="field__label">Cidade</label>
+          <input class="field__input" type="text" id="acc-city" name="city" required />
         </div>
 
-        <p class="auth__sectionlabel">Trocar senha <span class="auth__opt">(opcional)</span></p>
-        <p class="account-modal__sub">Preencha só se quiser alterar a senha. É preciso informar a senha atual.</p>
+        <p class="auth__sectionlabel">Alterar data de nascimento <span class="auth__opt">(opcional)</span></p>
+        <p class="account-modal__sub">Preencha só se quiser trocar a data usada para entrar.</p>
         <div class="field">
-          <label for="acc-pass-current" class="field__label">Senha atual</label>
-          <input class="field__input" type="password" id="acc-pass-current" name="currentPassword" autocomplete="current-password" />
+          <label for="acc-birthdate-current" class="field__label">Data de nascimento atual</label>
+          <input class="field__input" type="date" id="acc-birthdate-current" autocomplete="off" />
         </div>
         <div class="field-row">
           <div class="field field--half">
-            <label for="acc-pass-new" class="field__label">Nova senha</label>
-            <input class="field__input" type="password" id="acc-pass-new" name="newPassword" autocomplete="new-password" minlength="4" />
+            <label for="acc-birthdate-new" class="field__label">Nova data</label>
+            <input class="field__input" type="date" id="acc-birthdate-new" autocomplete="off" />
           </div>
           <div class="field field--half">
-            <label for="acc-pass-new2" class="field__label">Confirmar nova senha</label>
-            <input class="field__input" type="password" id="acc-pass-new2" name="newPasswordConfirm" autocomplete="new-password" />
+            <label for="acc-birthdate-new2" class="field__label">Confirmar nova data</label>
+            <input class="field__input" type="date" id="acc-birthdate-new2" autocomplete="off" />
           </div>
         </div>
 
@@ -249,15 +249,9 @@
           <label for="addr-neighborhood" class="field__label">Bairro</label>
           <input class="field__input" type="text" id="addr-neighborhood" name="neighborhood" required />
         </div>
-        <div class="field-row">
-          <div class="field field--two-thirds">
-            <label for="addr-city" class="field__label">Cidade</label>
-            <input class="field__input" type="text" id="addr-city" name="city" required />
-          </div>
-          <div class="field field--third">
-            <label for="addr-state" class="field__label">UF</label>
-            <input class="field__input field__input--uf" type="text" id="addr-state" name="state" maxlength="2" placeholder="SC" required />
-          </div>
+        <div class="field">
+          <label for="addr-city" class="field__label">Cidade</label>
+          <input class="field__input" type="text" id="addr-city" name="city" required />
         </div>
 
         <div class="addr-actions">

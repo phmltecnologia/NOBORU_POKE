@@ -1558,6 +1558,12 @@ body.account-open {
   color: var(--muted);
 }
 
+.field__hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 .field__input {
   font: inherit;
   font-size: 0.95rem;

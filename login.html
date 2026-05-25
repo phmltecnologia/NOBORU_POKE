@@ -39,15 +39,16 @@
     <div class="auth__panel" id="panel-login" role="tabpanel" aria-labelledby="tab-login">
       <form class="auth__form" id="form-login" novalidate>
         <div class="field">
-          <label for="login-email" class="field__label">E-mail</label>
-          <input class="field__input" type="email" id="login-email" name="email" autocomplete="email" required />
+          <label for="login-phone" class="field__label">Telefone (WhatsApp)</label>
+          <input class="field__input" type="tel" id="login-phone" name="phone" autocomplete="tel" inputmode="tel" required placeholder="(48) 99999-9999" />
         </div>
         <div class="field">
-          <label for="login-password" class="field__label">Senha</label>
-          <input class="field__input" type="password" id="login-password" name="password" autocomplete="current-password" required minlength="4" />
+          <label for="login-birthdate" class="field__label">Data de nascimento</label>
+          <input class="field__input" type="date" id="login-birthdate" name="birthDate" autocomplete="bday" required />
+          <p class="field__hint">Use sua data de nascimento para entrar.</p>
         </div>
         <p class="auth__forgot">
-          <button type="button" class="auth__link" id="btn-forgot-password">Esqueci minha senha</button>
+          <button type="button" class="auth__link" id="btn-forgot-password">Esqueci minha data de nascimento</button>
         </p>
         <button type="submit" class="btn btn--primary">Entrar</button>
       </form>
@@ -56,29 +57,24 @@
     <div class="auth__panel auth__panel--hidden" id="panel-register" role="tabpanel" aria-labelledby="tab-register" hidden>
       <form class="auth__form" id="form-register" novalidate>
         <p class="auth__sectionlabel">Dados pessoais</p>
+        <div class="field-row">
+          <div class="field field--half">
+            <label for="reg-firstname" class="field__label">Nome</label>
+            <input class="field__input" type="text" id="reg-firstname" name="firstName" autocomplete="given-name" required />
+          </div>
+          <div class="field field--half">
+            <label for="reg-lastname" class="field__label">Sobrenome</label>
+            <input class="field__input" type="text" id="reg-lastname" name="lastName" autocomplete="family-name" required />
+          </div>
+        </div>
         <div class="field">
-          <label for="reg-name" class="field__label">Nome completo</label>
-          <input class="field__input" type="text" id="reg-name" name="name" autocomplete="name" required />
+          <label for="reg-phone" class="field__label">Telefone (WhatsApp)</label>
+          <input class="field__input" type="tel" id="reg-phone" name="phone" autocomplete="tel" inputmode="tel" required placeholder="(48) 99999-9999" />
         </div>
-        <div class="field-row">
-          <div class="field field--half">
-            <label for="reg-email" class="field__label">E-mail</label>
-            <input class="field__input" type="email" id="reg-email" name="email" autocomplete="email" required />
-          </div>
-          <div class="field field--half">
-            <label for="reg-phone" class="field__label">Telefone (WhatsApp)</label>
-            <input class="field__input" type="tel" id="reg-phone" name="phone" autocomplete="tel" required />
-          </div>
-        </div>
-        <div class="field-row">
-          <div class="field field--half">
-            <label for="reg-password" class="field__label">Senha</label>
-            <input class="field__input" type="password" id="reg-password" name="password" autocomplete="new-password" required minlength="4" />
-          </div>
-          <div class="field field--half">
-            <label for="reg-password2" class="field__label">Confirmar senha</label>
-            <input class="field__input" type="password" id="reg-password2" name="passwordConfirm" autocomplete="new-password" required />
-          </div>
+        <div class="field">
+          <label for="reg-birthdate" class="field__label">Data de nascimento</label>
+          <input class="field__input" type="date" id="reg-birthdate" name="birthDate" autocomplete="bday" required />
+          <p class="field__hint">Será usada para entrar na sua conta.</p>
         </div>
 
         <p class="auth__sectionlabel">Endereço</p>
@@ -106,15 +102,9 @@
           <label for="reg-neighborhood" class="field__label">Bairro</label>
           <input class="field__input" type="text" id="reg-neighborhood" name="neighborhood" required />
         </div>
-        <div class="field-row">
-          <div class="field field--two-thirds">
-            <label for="reg-city" class="field__label">Cidade</label>
-            <input class="field__input" type="text" id="reg-city" name="city" autocomplete="address-level2" required />
-          </div>
-          <div class="field field--third">
-            <label for="reg-state" class="field__label">UF</label>
-            <input class="field__input field__input--uf" type="text" id="reg-state" name="state" autocomplete="address-level1" required maxlength="2" placeholder="SC" />
-          </div>
+        <div class="field">
+          <label for="reg-city" class="field__label">Cidade</label>
+          <input class="field__input" type="text" id="reg-city" name="city" autocomplete="address-level2" required />
         </div>
 
         <button type="submit" class="btn btn--primary">Cadastrar e entrar</button>
@@ -123,27 +113,23 @@
 
     <div class="auth__panel auth__panel--hidden" id="panel-reset" role="tabpanel" hidden>
       <form class="auth__form" id="form-reset" novalidate>
-        <p class="auth__sectionlabel">Redefinir senha</p>
-        <p class="auth__hint">Use o e-mail e o telefone (WhatsApp) cadastrados na conta.</p>
-        <div class="field">
-          <label for="reset-email" class="field__label">E-mail</label>
-          <input class="field__input" type="email" id="reset-email" name="email" autocomplete="email" required />
-        </div>
+        <p class="auth__sectionlabel">Redefinir data de nascimento</p>
+        <p class="auth__hint">Informe o telefone cadastrado e defina uma nova data de nascimento (usada para entrar).</p>
         <div class="field">
           <label for="reset-phone" class="field__label">Telefone (WhatsApp)</label>
-          <input class="field__input" type="tel" id="reset-phone" name="phone" autocomplete="tel" required />
+          <input class="field__input" type="tel" id="reset-phone" name="phone" autocomplete="tel" inputmode="tel" required placeholder="(48) 99999-9999" />
         </div>
         <div class="field-row">
           <div class="field field--half">
-            <label for="reset-password" class="field__label">Nova senha</label>
-            <input class="field__input" type="password" id="reset-password" name="password" autocomplete="new-password" required minlength="4" />
+            <label for="reset-birthdate" class="field__label">Nova data de nascimento</label>
+            <input class="field__input" type="date" id="reset-birthdate" name="birthDate" autocomplete="bday" required />
           </div>
           <div class="field field--half">
-            <label for="reset-password2" class="field__label">Confirmar nova senha</label>
-            <input class="field__input" type="password" id="reset-password2" name="passwordConfirm" autocomplete="new-password" required />
+            <label for="reset-birthdate2" class="field__label">Confirmar data</label>
+            <input class="field__input" type="date" id="reset-birthdate2" name="birthDateConfirm" autocomplete="bday" required />
           </div>
         </div>
-        <button type="submit" class="btn btn--primary">Redefinir senha</button>
+        <button type="submit" class="btn btn--primary">Salvar nova data</button>
         <p class="auth__forgot">
           <button type="button" class="auth__link" id="reset-back">Voltar ao login</button>
         </p>
@@ -153,7 +139,6 @@
 
   <script src="js/data.js"></script>
   <script src="js/restaurant-links.js"></script>
-  <script src="js/password-fields.js"></script>
   <script src="js/login.js"></script>
 </body>
 </html>

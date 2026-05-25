@@ -10,7 +10,6 @@
   var formRegister = document.getElementById("form-register");
   var formReset = document.getElementById("form-reset");
   var cepInput = document.getElementById("reg-cep");
-  var stateInput = document.getElementById("reg-state");
 
   function showMessage(text, isError) {
     msgBox.innerHTML = "";
@@ -58,10 +57,10 @@
   var btnForgot = document.getElementById("btn-forgot-password");
   if (btnForgot) {
     btnForgot.addEventListener("click", function () {
-      var loginEmail = document.getElementById("login-email");
-      var resetEmail = document.getElementById("reset-email");
-      if (loginEmail && resetEmail && loginEmail.value) {
-        resetEmail.value = loginEmail.value;
+      var loginPhone = document.getElementById("login-phone");
+      var resetPhone = document.getElementById("reset-phone");
+      if (loginPhone && resetPhone && loginPhone.value) {
+        resetPhone.value = loginPhone.value;
       }
       setPanel("reset");
     });
@@ -81,17 +80,12 @@
       else cepInput.value = d.slice(0, 5) + "-" + d.slice(5);
     });
   }
-  if (stateInput) {
-    stateInput.addEventListener("input", function () {
-      stateInput.value = stateInput.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
-    });
-  }
 
   formLogin.addEventListener("submit", function (e) {
     e.preventDefault();
-    var email = document.getElementById("login-email").value;
-    var password = document.getElementById("login-password").value;
-    var r = Auth.login(email, password);
+    var phone = document.getElementById("login-phone").value;
+    var birthDate = document.getElementById("login-birthdate").value;
+    var r = Auth.login(phone, birthDate);
     if (r.ok) {
       showMessage("Entrando…", false);
       location.href = "index.html";
@@ -103,18 +97,16 @@
   formRegister.addEventListener("submit", function (e) {
     e.preventDefault();
     var data = {
-      name: document.getElementById("reg-name").value,
-      email: document.getElementById("reg-email").value,
+      firstName: document.getElementById("reg-firstname").value,
+      lastName: document.getElementById("reg-lastname").value,
       phone: document.getElementById("reg-phone").value,
-      password: document.getElementById("reg-password").value,
-      passwordConfirm: document.getElementById("reg-password2").value,
+      birthDate: document.getElementById("reg-birthdate").value,
       cep: document.getElementById("reg-cep").value,
       street: document.getElementById("reg-street").value,
       number: document.getElementById("reg-number").value,
       complement: document.getElementById("reg-complement").value,
       neighborhood: document.getElementById("reg-neighborhood").value,
       city: document.getElementById("reg-city").value,
-      state: document.getElementById("reg-state").value,
     };
     var r = Auth.register(data);
     if (r.ok) {
@@ -129,25 +121,20 @@
     formReset.addEventListener("submit", function (e) {
       e.preventDefault();
       var data = {
-        email: document.getElementById("reset-email").value,
         phone: document.getElementById("reset-phone").value,
-        password: document.getElementById("reset-password").value,
-        passwordConfirm: document.getElementById("reset-password2").value,
+        birthDate: document.getElementById("reset-birthdate").value,
+        birthDateConfirm: document.getElementById("reset-birthdate2").value,
       };
       var r = Auth.resetPassword(data);
       if (r.ok) {
-        showMessage("Senha redefinida! Faça login com a nova senha.", false);
-        document.getElementById("login-email").value = data.email;
-        document.getElementById("login-password").value = "";
+        showMessage("Data atualizada! Entre com a nova data de nascimento.", false);
+        document.getElementById("login-phone").value = data.phone;
+        document.getElementById("login-birthdate").value = data.birthDate;
         formReset.reset();
         setPanel("login");
       } else {
         showMessage(r.error, true);
       }
     });
-  }
-
-  if (window.PasswordFields) {
-    PasswordFields.init(document);
   }
 })();
