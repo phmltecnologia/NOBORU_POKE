@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Entrar — Noboru Poke</title>
+  <link rel="icon" href="material/logo_noboru.jpg" type="image/jpeg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="js/auth.js"></script>
+  <script>
+    if (typeof Auth !== "undefined" && Auth.isLoggedIn()) {
+      location.replace("index.html");
+    }
+  </script>
+</head>
+<body class="auth-body">
+  <div class="auth">
+    <div class="auth__brand">
+      <img class="auth__logo" src="img/logo_noboru.jpg" width="140" height="140" alt="" aria-hidden="true" onerror="this.onerror=null;this.src='material/logo_noboru.jpg'" />
+      <h1 class="auth__title sr-only">Noboru Poke</h1>
+      <p class="auth__subtitle">Pokes e temakis — acesse sua conta para fazer pedidos.</p>
+      <div class="restaurant-links restaurant-links--auth" id="restaurant-links"></div>
+    </div>
+
+    <div class="auth__tabs" id="auth-tabs" role="tablist" aria-label="Acesso">
+      <button type="button" class="auth__tab auth__tab--active" id="tab-login" role="tab" aria-selected="true" aria-controls="panel-login" data-panel="login">
+        Entrar
+      </button>
+      <button type="button" class="auth__tab" id="tab-register" role="tab" aria-selected="false" aria-controls="panel-register" data-panel="register">
+        Criar conta
+      </button>
+    </div>
+
+    <div class="auth__alerts" id="auth-messages" aria-live="polite"></div>
+
+    <div class="auth__panel" id="panel-login" role="tabpanel" aria-labelledby="tab-login">
+      <form class="auth__form" id="form-login" novalidate>
+        <div class="field">
+          <label for="login-email" class="field__label">E-mail</label>
+          <input class="field__input" type="email" id="login-email" name="email" autocomplete="email" required />
+        </div>
+        <div class="field">
+          <label for="login-password" class="field__label">Senha</label>
+          <input class="field__input" type="password" id="login-password" name="password" autocomplete="current-password" required minlength="4" />
+        </div>
+        <p class="auth__forgot">
+          <button type="button" class="auth__link" id="btn-forgot-password">Esqueci minha senha</button>
+        </p>
+        <button type="submit" class="btn btn--primary">Entrar</button>
+      </form>
+    </div>
+
+    <div class="auth__panel auth__panel--hidden" id="panel-register" role="tabpanel" aria-labelledby="tab-register" hidden>
+      <form class="auth__form" id="form-register" novalidate>
+        <p class="auth__sectionlabel">Dados pessoais</p>
+        <div class="field">
+          <label for="reg-name" class="field__label">Nome completo</label>
+          <input class="field__input" type="text" id="reg-name" name="name" autocomplete="name" required />
+        </div>
+        <div class="field-row">
+          <div class="field field--half">
+            <label for="reg-email" class="field__label">E-mail</label>
+            <input class="field__input" type="email" id="reg-email" name="email" autocomplete="email" required />
+          </div>
+          <div class="field field--half">
+            <label for="reg-phone" class="field__label">Telefone (WhatsApp)</label>
+            <input class="field__input" type="tel" id="reg-phone" name="phone" autocomplete="tel" required />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field field--half">
+            <label for="reg-password" class="field__label">Senha</label>
+            <input class="field__input" type="password" id="reg-password" name="password" autocomplete="new-password" required minlength="4" />
+          </div>
+          <div class="field field--half">
+            <label for="reg-password2" class="field__label">Confirmar senha</label>
+            <input class="field__input" type="password" id="reg-password2" name="passwordConfirm" autocomplete="new-password" required />
+          </div>
+        </div>
+
+        <p class="auth__sectionlabel">Endereço</p>
+        <div class="field-row">
+          <div class="field field--third">
+            <label for="reg-cep" class="field__label">CEP</label>
+            <input class="field__input" type="text" id="reg-cep" name="cep" inputmode="numeric" autocomplete="postal-code" maxlength="9" required placeholder="00000-000" />
+          </div>
+          <div class="field field--grow">
+            <label for="reg-street" class="field__label">Logradouro</label>
+            <input class="field__input" type="text" id="reg-street" name="street" autocomplete="address-line1" required />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field field--quarter">
+            <label for="reg-number" class="field__label">Número</label>
+            <input class="field__input" type="text" id="reg-number" name="number" autocomplete="address-line2" required />
+          </div>
+          <div class="field field--grow">
+            <label for="reg-complement" class="field__label">Complemento</label>
+            <input class="field__input" type="text" id="reg-complement" name="complement" autocomplete="address-line2" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="reg-neighborhood" class="field__label">Bairro</label>
+          <input class="field__input" type="text" id="reg-neighborhood" name="neighborhood" required />
+        </div>
+        <div class="field-row">
+          <div class="field field--two-thirds">
+            <label for="reg-city" class="field__label">Cidade</label>
+            <input class="field__input" type="text" id="reg-city" name="city" autocomplete="address-level2" required />
+          </div>
+          <div class="field field--third">
+            <label for="reg-state" class="field__label">UF</label>
+            <input class="field__input field__input--uf" type="text" id="reg-state" name="state" autocomplete="address-level1" required maxlength="2" placeholder="SC" />
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn--primary">Cadastrar e entrar</button>
+      </form>
+    </div>
+
+    <div class="auth__panel auth__panel--hidden" id="panel-reset" role="tabpanel" hidden>
+      <form class="auth__form" id="form-reset" novalidate>
+        <p class="auth__sectionlabel">Redefinir senha</p>
+        <p class="auth__hint">Use o e-mail e o telefone (WhatsApp) cadastrados na conta.</p>
+        <div class="field">
+          <label for="reset-email" class="field__label">E-mail</label>
+          <input class="field__input" type="email" id="reset-email" name="email" autocomplete="email" required />
+        </div>
+        <div class="field">
+          <label for="reset-phone" class="field__label">Telefone (WhatsApp)</label>
+          <input class="field__input" type="tel" id="reset-phone" name="phone" autocomplete="tel" required />
+        </div>
+        <div class="field-row">
+          <div class="field field--half">
+            <label for="reset-password" class="field__label">Nova senha</label>
+            <input class="field__input" type="password" id="reset-password" name="password" autocomplete="new-password" required minlength="4" />
+          </div>
+          <div class="field field--half">
+            <label for="reset-password2" class="field__label">Confirmar nova senha</label>
+            <input class="field__input" type="password" id="reset-password2" name="passwordConfirm" autocomplete="new-password" required />
+          </div>
+        </div>
+        <button type="submit" class="btn btn--primary">Redefinir senha</button>
+        <p class="auth__forgot">
+          <button type="button" class="auth__link" id="reset-back">Voltar ao login</button>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/restaurant-links.js"></script>
+  <script src="js/password-fields.js"></script>
+  <script src="js/login.js"></script>
+</body>
+</html>

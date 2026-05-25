@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Noboru Poke — Pokes e temakis pelo WhatsApp</title>
+  <link rel="icon" href="material/logo_noboru.jpg" type="image/jpeg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="js/auth.js"></script>
+  <script>
+    if (typeof Auth === "undefined" || !Auth.isLoggedIn()) {
+      location.replace("login.html");
+    }
+  </script>
+</head>
+<body>
+  <div class="userbar" id="header-userbar">
+    <div class="userbar__hello">
+      <span class="userbar__icon" aria-hidden="true">👤</span>
+      <div class="userbar__text">
+        <span class="userbar__greet" id="user-greeting">Olá</span>
+        <span class="userbar__hint">Bem-vindo(a) de volta</span>
+      </div>
+    </div>
+    <div class="userbar__actions">
+      <button type="button" class="userbar__btn" id="btn-account">Conta</button>
+      <button
+        type="button"
+        class="userbar__btn userbar__btn--ghost"
+        id="btn-menuadmin"
+        title="Gerir itens do cardápio (adicionar, editar, remover)"
+      >
+        Cardápio
+      </button>
+      <button type="button" class="userbar__btn userbar__btn--ghost" id="btn-logout">Sair</button>
+    </div>
+  </div>
+
+  <div class="account-overlay" id="account-overlay" hidden aria-hidden="true">
+    <div class="account-modal" id="account-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
+      <div class="account-modal__head">
+        <h2 class="account-modal__title" id="account-title">Minha conta</h2>
+        <button type="button" class="account-modal__close" id="account-close" aria-label="Fechar">×</button>
+      </div>
+      <p class="account-modal__lead">Visualize e atualize seus dados. O e-mail de login não pode ser alterado.</p>
+      <div class="account-msg" id="account-msg" role="status" aria-live="polite"></div>
+      <form class="account-form" id="account-form" novalidate>
+        <p class="auth__sectionlabel">Dados pessoais</p>
+        <div class="field">
+          <label for="acc-name" class="field__label">Nome completo</label>
+          <input class="field__input" type="text" id="acc-name" name="name" autocomplete="name" required />
+        </div>
+        <div class="field">
+          <label for="acc-email" class="field__label">E-mail (login)</label>
+          <input class="field__input field__input--readonly" type="email" id="acc-email" readonly tabindex="-1" />
+        </div>
+        <div class="field">
+          <label for="acc-phone" class="field__label">Telefone (WhatsApp)</label>
+          <input class="field__input" type="tel" id="acc-phone" name="phone" autocomplete="tel" required />
+        </div>
+
+        <p class="auth__sectionlabel">Endereço</p>
+        <div class="field-row">
+          <div class="field field--third">
+            <label for="acc-cep" class="field__label">CEP</label>
+            <input class="field__input" type="text" id="acc-cep" name="cep" inputmode="numeric" maxlength="9" required />
+          </div>
+          <div class="field field--grow">
+            <label for="acc-street" class="field__label">Logradouro</label>
+            <input class="field__input" type="text" id="acc-street" name="street" required />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field field--quarter">
+            <label for="acc-number" class="field__label">Número</label>
+            <input class="field__input" type="text" id="acc-number" name="number" required />
+          </div>
+          <div class="field field--grow">
+            <label for="acc-complement" class="field__label">Complemento</label>
+            <input class="field__input" type="text" id="acc-complement" name="complement" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="acc-neighborhood" class="field__label">Bairro</label>
+          <input class="field__input" type="text" id="acc-neighborhood" name="neighborhood" required />
+        </div>
+        <div class="field-row">
+          <div class="field field--two-thirds">
+            <label for="acc-city" class="field__label">Cidade</label>
+            <input class="field__input" type="text" id="acc-city" name="city" required />
+          </div>
+          <div class="field field--third">
+            <label for="acc-state" class="field__label">UF</label>
+            <input class="field__input field__input--uf" type="text" id="acc-state" name="state" maxlength="2" placeholder="SC" required />
+          </div>
+        </div>
+
+        <p class="auth__sectionlabel">Trocar senha <span class="auth__opt">(opcional)</span></p>
+        <p class="account-modal__sub">Preencha só se quiser alterar a senha. É preciso informar a senha atual.</p>
+        <div class="field">
+          <label for="acc-pass-current" class="field__label">Senha atual</label>
+          <input class="field__input" type="password" id="acc-pass-current" name="currentPassword" autocomplete="current-password" />
+        </div>
+        <div class="field-row">
+          <div class="field field--half">
+            <label for="acc-pass-new" class="field__label">Nova senha</label>
+            <input class="field__input" type="password" id="acc-pass-new" name="newPassword" autocomplete="new-password" minlength="4" />
+          </div>
+          <div class="field field--half">
+            <label for="acc-pass-new2" class="field__label">Confirmar nova senha</label>
+            <input class="field__input" type="password" id="acc-pass-new2" name="newPasswordConfirm" autocomplete="new-password" />
+          </div>
+        </div>
+
+        <div class="account-form__actions">
+          <button type="button" class="btn btn--ghost" id="account-cancel">Cancelar</button>
+          <button type="submit" class="btn btn--primary" id="account-save">Salvar alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <header class="header">
+    <div class="header__inner">
+      <img class="header__logo" src="img/logo_noboru.jpg" width="120" height="120" alt="Noboru Poke — pokes e temakis" onerror="this.onerror=null;this.src='material/logo_noboru.jpg'" />
+      <div class="header__text">
+        <h1 class="sr-only">Noboru Poke</h1>
+        <p class="header__tagline">Pokes e temakis — monte seu poke ou escolha do cardápio e peça pelo WhatsApp</p>
+        <div class="restaurant-links" id="restaurant-links"></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="search-bar" role="search" aria-label="Pesquisar no cardápio">
+      <div class="search-bar__field">
+        <span class="search-bar__icon" aria-hidden="true">🔍</span>
+        <input
+          type="search"
+          id="menu-search"
+          class="search-bar__input"
+          placeholder="Poke, temaki, ingredientes, categoria…"
+          autocomplete="off"
+          enterkeyhint="search"
+        />
+        <button type="button" class="search-bar__clear" id="menu-search-clear" hidden aria-label="Limpar pesquisa">×</button>
+      </div>
+    </div>
+    <nav class="categories" id="category-nav" aria-label="Categorias"></nav>
+
+    <section class="menu" id="menu" aria-label="Cardápio - Noboru Poke"></section>
+  </main>
+
+  <aside class="cart-panel" id="cart-panel">
+    <div class="cart-panel__header">
+      <h2 class="cart-panel__title">Seu carrinho</h2>
+      <button type="button" class="cart-panel__close" id="cart-close" aria-label="Fechar carrinho">×</button>
+    </div>
+    <ul class="cart__list" id="cart-list"></ul>
+    <p class="cart__empty" id="cart-empty">Carrinho vazio. Adicione itens do cardápio abaixo.</p>
+    <div class="cart__footer" id="cart-footer" hidden>
+      <div class="cart__total">
+        <span>Total</span>
+        <strong id="cart-total">R$ 0,00</strong>
+      </div>
+      <button type="button" class="btn btn--primary" id="btn-whatsapp" disabled>
+        Forma de pagamento
+      </button>
+    </div>
+  </aside>
+
+  <button type="button" class="fab-cart" id="fab-cart" aria-label="Abrir carrinho">
+    <span class="fab-cart__icon" aria-hidden="true">🛒</span>
+    <span class="fab-cart__badge" id="cart-badge" hidden>0</span>
+  </button>
+
+  <div class="cart-backdrop" id="cart-backdrop" hidden></div>
+
+  <div class="pay-overlay" id="pay-overlay" hidden aria-hidden="true">
+    <div class="pay-modal" id="pay-modal" role="dialog" aria-modal="true" aria-labelledby="pay-title">
+      <h2 class="pay-modal__title" id="pay-title">Forma de pagamento</h2>
+      <p class="pay-modal__hint">Como prefere pagar? Depois o resumo do pedido é enviado no WhatsApp.</p>
+      <form class="pay-form" id="pay-form" novalidate>
+        <div class="pay-options">
+          <label class="pay-option">
+            <input type="radio" name="payment" value="pix" class="pay-option__input" />
+            <span class="pay-option__box">PIX</span>
+          </label>
+          <div class="pay-option-wrap" id="pay-wrap-money">
+            <label class="pay-option">
+              <input type="radio" name="payment" value="money" class="pay-option__input" id="pay-radio-money" />
+              <span class="pay-option__box">Dinheiro</span>
+            </label>
+            <div class="pay-expand" id="pay-expand-money" aria-hidden="true">
+              <label for="pay-troco" class="field__label">Troco para quanto?</label>
+              <input class="field__input" type="text" id="pay-troco" name="troco" inputmode="decimal" placeholder="Ex.: 100,00" autocomplete="off" />
+              <p class="pay-troco-hint">Opcional — deixe em branco se não precisar de troco.</p>
+            </div>
+          </div>
+          <label class="pay-option">
+            <input type="radio" name="payment" value="maquininha" class="pay-option__input" />
+            <span class="pay-option__box">Máquininha</span>
+          </label>
+          <label class="pay-option">
+            <input type="radio" name="payment" value="vale" class="pay-option__input" />
+            <span class="pay-option__box">Vale alimentação</span>
+          </label>
+        </div>
+        <div class="pay-footer">
+          <button type="button" class="btn btn--ghost" id="pay-back">Voltar</button>
+          <button type="submit" class="btn btn--primary pay-submit" id="pay-submit">Prosseguir</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="addr-overlay" id="addr-overlay" hidden aria-hidden="true">
+    <div class="addr-modal" id="addr-modal" role="dialog" aria-modal="true" aria-labelledby="addr-title">
+      <div class="addr-modal__head">
+        <h2 class="addr-modal__title" id="addr-title">Revisar endereço</h2>
+        <button type="button" class="addr-modal__close" id="addr-close" aria-label="Fechar">×</button>
+      </div>
+      <p class="addr-modal__hint">Confirme o endereço de entrega/retirada antes de prosseguir.</p>
+      <div class="addr-msg" id="addr-msg" role="status" aria-live="polite"></div>
+      <form class="addr-form" id="addr-form" novalidate>
+        <div class="field-row">
+          <div class="field field--third">
+            <label for="addr-cep" class="field__label">CEP</label>
+            <input class="field__input" type="text" id="addr-cep" name="cep" inputmode="numeric" maxlength="9" required placeholder="00000-000" />
+          </div>
+          <div class="field field--grow">
+            <label for="addr-street" class="field__label">Logradouro</label>
+            <input class="field__input" type="text" id="addr-street" name="street" required />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field field--quarter">
+            <label for="addr-number" class="field__label">Número</label>
+            <input class="field__input" type="text" id="addr-number" name="number" required />
+          </div>
+          <div class="field field--grow">
+            <label for="addr-complement" class="field__label">Complemento</label>
+            <input class="field__input" type="text" id="addr-complement" name="complement" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="addr-neighborhood" class="field__label">Bairro</label>
+          <input class="field__input" type="text" id="addr-neighborhood" name="neighborhood" required />
+        </div>
+        <div class="field-row">
+          <div class="field field--two-thirds">
+            <label for="addr-city" class="field__label">Cidade</label>
+            <input class="field__input" type="text" id="addr-city" name="city" required />
+          </div>
+          <div class="field field--third">
+            <label for="addr-state" class="field__label">UF</label>
+            <input class="field__input field__input--uf" type="text" id="addr-state" name="state" maxlength="2" placeholder="SC" required />
+          </div>
+        </div>
+
+        <div class="addr-actions">
+          <button type="button" class="btn btn--ghost" id="addr-back">Voltar</button>
+          <button type="submit" class="btn btn--primary" id="addr-proceed">Prosseguir</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="pix-overlay" id="pix-overlay" hidden aria-hidden="true">
+    <div class="pix-modal" id="pix-modal" role="dialog" aria-modal="true" aria-labelledby="pix-title">
+      <div class="pix-modal__head">
+        <h2 class="pix-modal__title" id="pix-title">Pagamento via PIX</h2>
+        <button type="button" class="pix-modal__close" id="pix-close" aria-label="Fechar">×</button>
+      </div>
+      <p class="pix-modal__hint">
+        Escaneie o QR Code ou copie o código PIX. Valor do pedido: <strong id="pix-amount">R$ 0,00</strong>
+      </p>
+      <div class="pix-grid">
+        <div class="pix-qr">
+          <img id="pix-qr-img" alt="QR Code PIX" />
+        </div>
+        <div class="pix-code">
+          <label class="field__label" for="pix-code-text">Código PIX (copia e cola)</label>
+          <textarea class="pix-code__text" id="pix-code-text" readonly rows="4"></textarea>
+          <div class="pix-actions">
+            <button type="button" class="btn btn--ghost" id="pix-copy">Copiar código</button>
+            <button type="button" class="btn btn--primary" id="pix-whatsapp">Prosseguir</button>
+          </div>
+          <p class="pix-note">Chave PIX: <strong>48991636944</strong> (telefone)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="poke-note-overlay" id="poke-note-overlay" hidden aria-hidden="true">
+    <div class="poke-modal poke-note-modal" id="poke-note-modal" role="dialog" aria-modal="true" aria-labelledby="poke-note-title">
+      <div class="poke-modal__head">
+        <h2 class="poke-modal__title" id="poke-note-title">Adicionar ao carrinho</h2>
+        <button type="button" class="poke-modal__close" id="poke-note-close" aria-label="Fechar">×</button>
+      </div>
+      <fieldset class="poke-fieldset poke-fieldset--sizes">
+        <legend class="poke-legend">Tamanho</legend>
+        <div class="poke-sizes" id="poke-note-sizes"></div>
+      </fieldset>
+      <p class="poke-note-price" id="poke-note-price"></p>
+      <div class="poke-note-desc-wrap" id="poke-note-desc-wrap" hidden>
+        <p class="poke-note-desc-label">Composição</p>
+        <p class="poke-note-desc" id="poke-note-desc"></p>
+      </div>
+      <div class="field field--note">
+        <label for="poke-note-text" class="field__label">Observação (opcional)</label>
+        <textarea
+          class="field__input field__textarea field__textarea--note"
+          id="poke-note-text"
+          rows="3"
+          maxlength="300"
+          placeholder="Ex.: sem cebola roxa, pouco cream cheese, molho à parte…"
+        ></textarea>
+      </div>
+      <div class="poke-actions">
+        <button type="button" class="btn btn--ghost" id="poke-note-cancel">Cancelar</button>
+        <button type="button" class="btn btn--primary" id="poke-note-add">Adicionar ao carrinho</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="poke-overlay" id="poke-overlay" hidden aria-hidden="true">
+    <div class="poke-modal" id="poke-modal" role="dialog" aria-modal="true" aria-labelledby="poke-title">
+      <div class="poke-modal__head">
+        <h2 class="poke-modal__title" id="poke-title">Monte seu poke</h2>
+        <button type="button" class="poke-modal__close" id="poke-close" aria-label="Fechar">×</button>
+      </div>
+      <p class="poke-modal__hint">Base incluída: arroz japonês e alga marinha. Escolha o tamanho e os ingredientes.</p>
+      <div class="poke-msg" id="poke-msg" role="status" aria-live="polite"></div>
+      <fieldset class="poke-fieldset">
+        <legend class="poke-legend">Tamanho</legend>
+        <div class="poke-sizes" id="poke-sizes"></div>
+      </fieldset>
+      <fieldset class="poke-fieldset">
+        <legend class="poke-legend">Proteínas <span class="poke-legend__sub">(máx. 2)</span></legend>
+        <div class="poke-ingredients poke-ingredients--protein" id="poke-proteins"></div>
+      </fieldset>
+      <fieldset class="poke-fieldset">
+        <legend class="poke-legend">Complementos</legend>
+        <div class="poke-ingredients" id="poke-extras"></div>
+      </fieldset>
+      <div class="poke-summary">
+        <span class="poke-summary__label">Total estimado</span>
+        <strong class="poke-summary__price" id="poke-price-preview">R$ 0,00</strong>
+      </div>
+      <div class="poke-actions">
+        <button type="button" class="btn btn--ghost" id="poke-cancel">Cancelar</button>
+        <button type="button" class="btn btn--primary" id="poke-add">Adicionar ao carrinho</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="menuadmin-overlay" id="menuadmin-overlay" hidden aria-hidden="true">
+    <div
+      class="menuadmin-panel"
+      id="menuadmin-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="menuadmin-title"
+    >
+      <div class="menuadmin-head">
+        <div>
+          <h2 class="menuadmin-title" id="menuadmin-title">Editar cardápio</h2>
+          <p class="menuadmin-sub">Itens salvos neste aparelho (navegador). Use “Cardápio” no topo para reabrir.</p>
+        </div>
+        <button type="button" class="menuadmin-close" id="menuadmin-close" aria-label="Fechar">×</button>
+      </div>
+      <div class="menuadmin-list-wrap">
+        <div class="menuadmin-list" id="menuadmin-list" aria-label="Lista de itens do cardápio"></div>
+      </div>
+      <div class="menuadmin-formwrap" id="menuadmin-form-panel">
+        <h3 class="menuadmin-form__title" id="menuadmin-form-title">Novo item</h3>
+        <div class="menuadmin-msg" id="menuadmin-msg" role="status" aria-live="polite"></div>
+        <form class="account-form" id="menuadmin-form" novalidate>
+          <input type="hidden" id="m-edit-id" name="editId" value="" />
+          <div class="field">
+            <label for="m-name" class="field__label">Nome do prato / item</label>
+            <input class="field__input" type="text" id="m-name" name="name" required maxlength="120" />
+          </div>
+          <div class="field-row">
+            <div class="field field--third">
+              <label for="m-price" class="field__label">Preço (R$)</label>
+              <input class="field__input" type="text" id="m-price" name="price" inputmode="decimal" required placeholder="0,00" />
+            </div>
+            <div class="field field--grow">
+              <label for="m-category" class="field__label">Categoria</label>
+              <input
+                class="field__input"
+                type="text"
+                id="m-category"
+                name="category"
+                list="menuadmin-cat-list"
+                required
+                placeholder="Ex.: Pokes"
+              />
+            </div>
+          </div>
+          <div class="field field--desc">
+            <label for="m-desc" class="field__label">Descrição</label>
+            <textarea
+              class="field__input field__textarea"
+              id="m-desc"
+              name="desc"
+              rows="5"
+              placeholder="Ingredientes, observações, detalhes do prato…"
+            ></textarea>
+          </div>
+          <div class="field field--image">
+            <span class="field__label" id="m-image-label">Imagem do item (opcional)</span>
+            <input type="hidden" id="m-image" name="image" value="" />
+            <div
+              class="img-drop"
+              id="m-image-drop"
+              role="group"
+              aria-labelledby="m-image-label"
+            >
+              <input type="file" id="m-image-file" name="m_image_file" accept="image/jpeg,image/png,image/gif,image/webp" hidden />
+              <div
+                class="img-drop__zone"
+                id="m-image-zone"
+                tabindex="0"
+                aria-describedby="m-image-hint"
+              >
+                <div class="img-drop__empty" id="m-image-empty">
+                  <p class="img-drop__leads">
+                    <strong>Arraste uma imagem</strong> para esta área
+                  </p>
+                  <p class="img-drop__or">ou</p>
+                  <button type="button" class="img-drop__pick btn btn--ghost" id="m-image-browse">Escolher ficheiro</button>
+                </div>
+                <div class="img-drop__preview" id="m-image-preview" hidden>
+                  <img id="m-image-preview-img" src="" alt="Pré-visualização" />
+                  <div class="img-drop__preview-actions">
+                    <button type="button" class="img-drop__remove btn btn--ghost" id="m-image-clear">Remover imagem</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="img-drop__hint" id="m-image-hint">Passo: fotos no computador. São reduzidas automaticamente. Também podes colar o link numa imagem que já esteja online.</p>
+            <div class="img-field__url field">
+              <label for="m-image-url" class="field__label field__label--small">Imagem em link (se não usares ficheiro)</label>
+              <input class="field__input" type="url" id="m-image-url" inputmode="url" placeholder="https://exemplo.com/foto.jpg" />
+            </div>
+          </div>
+          <div class="account-form__actions">
+            <button type="button" class="btn btn--ghost" id="menuadmin-btn-add">Novo item</button>
+            <button type="button" class="btn btn--ghost" id="menuadmin-cancel">Fechar</button>
+            <button type="submit" class="btn btn--primary" id="menuadmin-save">Salvar item</button>
+          </div>
+        </form>
+      </div>
+      <datalist id="menuadmin-cat-list"></datalist>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/restaurant-links.js"></script>
+  <script src="js/password-fields.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/account.js"></script>
+  <script src="js/menu-admin.js"></script>
+  <script>
+    (function () {
+      if (!window.Auth) return;
+      if (window.__account && window.__account.updateGreeting) {
+        window.__account.updateGreeting();
+      } else {
+        var u = Auth.getCurrentUser();
+        var el = document.getElementById("user-greeting");
+        if (el && u) {
+          el.textContent = "Olá, " + (u.name || "Cliente").split(" ")[0];
+        }
+      }
+      var btn = document.getElementById("btn-logout");
+      if (btn) {
+        btn.addEventListener("click", function () {
+          Auth.logout();
+          location.href = "login.html";
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
