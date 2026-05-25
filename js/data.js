@@ -7,6 +7,7 @@
 
   window.RESTAURANT = {
     name: "Noboru Poke",
+    siteUrl: "https://noborupoke.vercel.app",
     instagram: "https://www.instagram.com/noboru_poke/",
     whatsappUrl: "https://wa.me/5548998078186",
     whatsappE164: "5548998078186",

@@ -27,6 +27,10 @@
 
     root.appendChild(ig);
     root.appendChild(wa);
+
+    if (window.ShareSite && ShareSite.createButton) {
+      root.appendChild(ShareSite.createButton());
+    }
   }
 
   window.renderRestaurantLinks = render;

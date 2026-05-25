@@ -81,9 +81,55 @@
     });
   }
 
+  if (window.PhoneField) {
+    PhoneField.init(document);
+  }
+
+  function phoneFromInput(id) {
+    var el = document.getElementById(id);
+    if (!el) return "";
+    if (window.PhoneField) {
+      var v = PhoneField.validate(el.value);
+      if (!v.ok) {
+        PhoneField.bind(el);
+        el.focus();
+        setFieldError(el, v.error);
+        return null;
+      }
+      el.value = v.formatted;
+      return v.formatted;
+    }
+    return el.value;
+  }
+
+  function setFieldError(input, message) {
+    if (!input || !window.PhoneField) return;
+    var field = input.closest(".field");
+    if (!field) return;
+    var existing = field.querySelector(".field__phone-error");
+    if (message) {
+      field.classList.add("field--invalid");
+      if (!existing) {
+        existing = document.createElement("p");
+        existing.className = "field__phone-error field__hint";
+        field.appendChild(existing);
+      }
+      existing.textContent = message;
+    } else {
+      field.classList.remove("field--invalid");
+      if (existing) existing.remove();
+    }
+  }
+
   formLogin.addEventListener("submit", function (e) {
     e.preventDefault();
-    var phone = document.getElementById("login-phone").value;
+    var phoneEl = document.getElementById("login-phone");
+    var phone = phoneFromInput("login-phone");
+    if (phone === null) {
+      var err = window.PhoneField ? PhoneField.validate(phoneEl.value).error : "Telefone inválido.";
+      showMessage(err, true);
+      return;
+    }
     var birthDate = document.getElementById("login-birthdate").value;
     var r = Auth.login(phone, birthDate);
     if (r.ok) {
@@ -96,10 +142,17 @@
 
   formRegister.addEventListener("submit", function (e) {
     e.preventDefault();
+    var phone = phoneFromInput("reg-phone");
+    if (phone === null) {
+      var regEl = document.getElementById("reg-phone");
+      var errReg = window.PhoneField ? PhoneField.validate(regEl.value).error : "Telefone inválido.";
+      showMessage(errReg, true);
+      return;
+    }
     var data = {
       firstName: document.getElementById("reg-firstname").value,
       lastName: document.getElementById("reg-lastname").value,
-      phone: document.getElementById("reg-phone").value,
+      phone: phone,
       birthDate: document.getElementById("reg-birthdate").value,
       cep: document.getElementById("reg-cep").value,
       street: document.getElementById("reg-street").value,
@@ -120,8 +173,15 @@
   if (formReset) {
     formReset.addEventListener("submit", function (e) {
       e.preventDefault();
+      var phone = phoneFromInput("reset-phone");
+      if (phone === null) {
+        var resetEl = document.getElementById("reset-phone");
+        var errReset = window.PhoneField ? PhoneField.validate(resetEl.value).error : "Telefone inválido.";
+        showMessage(errReset, true);
+        return;
+      }
       var data = {
-        phone: document.getElementById("reset-phone").value,
+        phone: phone,
         birthDate: document.getElementById("reset-birthdate").value,
         birthDateConfirm: document.getElementById("reset-birthdate2").value,
       };

@@ -18,11 +18,25 @@
   }
 
   function normalizePhone(s) {
+    if (window.PhoneField) return PhoneField.normalize(s);
     return String(s || "").replace(/\D/g, "");
   }
 
-  function isValidPhoneDigits(digits) {
-    return digits.length >= 10 && digits.length <= 13;
+  function checkPhone(value) {
+    if (window.PhoneField) return PhoneField.validate(value);
+    var digits = normalizePhone(value);
+    var ok = digits.length >= 10 && digits.length <= 13;
+    return {
+      ok: ok,
+      error: ok ? "" : "Informe um telefone válido (com DDD e número completo).",
+      formatted: String(value || "").trim(),
+      digits: digits,
+    };
+  }
+
+  function formatPhoneStored(value) {
+    var v = checkPhone(value);
+    return v.formatted || String(value || "").trim();
   }
 
   function normalizeEmail(s) {
@@ -180,11 +194,9 @@
   }
 
   function register(data) {
-    var phoneDigits = normalizePhone(data.phone);
-    if (!phoneDigits) return { ok: false, error: "Informe o telefone." };
-    if (!isValidPhoneDigits(phoneDigits)) {
-      return { ok: false, error: "Informe um telefone válido (com DDD, 10 ou 11 dígitos)." };
-    }
+    var phoneCheck = checkPhone(data.phone);
+    if (!phoneCheck.ok) return { ok: false, error: phoneCheck.error };
+    var phoneDigits = phoneCheck.digits;
     if (findByPhone(phoneDigits)) {
       return { ok: false, error: "Este telefone já está cadastrado." };
     }
@@ -206,7 +218,7 @@
       firstName: firstName,
       lastName: lastName,
       birthDate: birthIso,
-      phone: String(data.phone).trim(),
+      phone: formatPhoneStored(data.phone),
       address: buildAddress(data),
     };
 
@@ -259,11 +271,9 @@
   }
 
   function resetPassword(data) {
-    var phoneDigits = normalizePhone(data.phone);
-    if (!phoneDigits) return { ok: false, error: "Informe o telefone." };
-    if (!isValidPhoneDigits(phoneDigits)) {
-      return { ok: false, error: "Informe um telefone válido (com DDD, 10 ou 11 dígitos)." };
-    }
+    var phoneCheck = checkPhone(data.phone);
+    if (!phoneCheck.ok) return { ok: false, error: phoneCheck.error };
+    var phoneDigits = phoneCheck.digits;
     var found = findByPhone(phoneDigits);
     if (!found) {
       return { ok: false, error: "Não encontramos uma conta com este telefone." };
@@ -299,12 +309,10 @@
     var lastName = String(data.lastName || "").trim();
     if (!firstName) return { ok: false, error: "Informe o nome." };
     if (!lastName) return { ok: false, error: "Informe o sobrenome." };
-    if (!String(data.phone || "").trim()) return { ok: false, error: "Informe o telefone." };
+    var phoneCheck = checkPhone(data.phone);
+    if (!phoneCheck.ok) return { ok: false, error: phoneCheck.error };
 
-    var newDigits = normalizePhone(data.phone);
-    if (!isValidPhoneDigits(newDigits)) {
-      return { ok: false, error: "Informe um telefone válido (com DDD, 10 ou 11 dígitos)." };
-    }
+    var newDigits = phoneCheck.digits;
     var currentDigits = normalizePhone(found.user.phone);
     if (newDigits !== currentDigits) {
       var other = findByPhone(newDigits);
@@ -320,7 +328,7 @@
     u.firstName = firstName;
     u.lastName = lastName;
     delete u.name;
-    u.phone = String(data.phone).trim();
+    u.phone = formatPhoneStored(data.phone);
     delete u.email;
 
     if (data.birthDate) {

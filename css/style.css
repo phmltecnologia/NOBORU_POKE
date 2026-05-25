@@ -165,6 +165,45 @@ body {
   color: #fff;
 }
 
+.restaurant-links__btn--share {
+  border-color: var(--accent-vivid);
+  background: rgba(214, 40, 40, 0.15);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.restaurant-links__btn--share:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.share-site-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  transform: translateX(-50%) translateY(120%);
+  z-index: 9999;
+  margin: 0;
+  padding: 0.65rem 1rem;
+  max-width: min(92vw, 22rem);
+  font-size: 0.85rem;
+  text-align: center;
+  color: #fff;
+  background: rgba(20, 20, 20, 0.92);
+  border: 1px solid var(--accent-gold);
+  border-radius: 999px;
+  box-shadow: var(--shadow-panel);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.share-site-toast--visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
 .restaurant-links__icon {
   font-size: 1rem;
   line-height: 1;
@@ -1562,6 +1601,14 @@ body.account-open {
   margin: 0.25rem 0 0;
   font-size: 0.75rem;
   color: var(--muted);
+}
+
+.field--invalid .field__input {
+  border-color: var(--danger);
+}
+
+.field__phone-error {
+  color: var(--danger);
 }
 
 .field__input {
