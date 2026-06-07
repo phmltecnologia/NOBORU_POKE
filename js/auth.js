@@ -76,7 +76,7 @@
   }
 
   function validateAddress(data) {
-    if (!String(data.street || "").trim()) return "Informe o logradouro.";
+    if (!String(data.street || "").trim()) return "Informe a rua.";
     if (!String(data.number || "").trim()) return "Informe o número.";
     if (!String(data.neighborhood || "").trim()) return "Informe o bairro.";
     if (!String(data.city || "").trim()) return "Informe a cidade.";
