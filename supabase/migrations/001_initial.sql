@@ -99,7 +99,7 @@ INSERT INTO menu_items (id, name, "desc", category, price, custom_poke, sort_ord
 ON CONFLICT (id) DO NOTHING;
 
 -- Admin da loja (telefone WhatsApp da loja)
--- Login: telefone (48) 9807-8186 | data de nascimento: 1990-01-01
+-- Login: telefone (48) 99163-6944 | data de nascimento: 2006-03-11
 INSERT INTO profiles (
   phone_digits,
   phone_display,
@@ -110,13 +110,13 @@ INSERT INTO profiles (
   birth_date_hash,
   address
 ) VALUES (
-  '5548998078186',
-  '(48) 9807-8186',
+  '5548991636944',
+  '(48) 99163-6944',
   'Noboru',
   'Admin',
   'admin',
-  '1990-01-01',
-  extensions.crypt('1990-01-01', extensions.gen_salt('bf')),
+  '2006-03-11',
+  extensions.crypt('2006-03-11', extensions.gen_salt('bf')),
   '{}'::jsonb
 )
 ON CONFLICT (phone_digits) DO NOTHING;
