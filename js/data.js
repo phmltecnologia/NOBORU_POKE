@@ -1,6 +1,5 @@
 /**
- * Noboru Poke — pokes e temakis
- * Padrão em MENU_DEFAULT; versão ativa em window.MENU (pode vir do localStorage).
+ * Noboru Poke — cardápio (Supabase ou fallback local)
  */
 (function () {
   var STORAGE_KEY = "noboru_menu_v2";
@@ -199,7 +198,6 @@
     maxProteins: 2,
   };
 
-  /** Preços por tamanho nos pokes prontos (grande = preço do cardápio quando não informado). */
   window.getPremadePokePrice = function (item, sizeId) {
     if (!item) return 0;
     if (item.sizePrices && item.sizePrices[sizeId] != null) {
@@ -216,27 +214,76 @@
     return JSON.parse(JSON.stringify(a));
   }
 
-  function load() {
+  function loadLocal() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return deepClone(DEFAULT);
       var p = JSON.parse(raw);
       if (Array.isArray(p) && p.length > 0) return p;
     } catch (e) {
-      // ignora
+      /* ignore */
     }
     return deepClone(DEFAULT);
   }
 
   window.MENU_DEFAULT = deepClone(DEFAULT);
-  window.MENU = load();
+  window.MENU = deepClone(DEFAULT);
+
+  window.menuLoadPromise = (async function loadMenuFromApi() {
+    if (window.ApiClient && ApiClient.isConfigured()) {
+      try {
+        var r = await ApiClient.fetchMenu();
+        if (r.ok && r.items && r.items.length) {
+          window.MENU = r.items;
+          return;
+        }
+      } catch (e) {
+        console.warn("Falha ao carregar cardápio da nuvem, usando padrão local.", e);
+      }
+    }
+    window.MENU = loadLocal();
+  })();
+
+  window.whenMenuReady = function (fn) {
+    return window.menuLoadPromise.then(fn);
+  };
 
   window.saveMenuCatalog = function () {
+    if (window.ApiClient && ApiClient.isConfigured()) {
+      return Promise.resolve();
+    }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(window.MENU));
     } catch (e) {
       console.error("saveMenuCatalog", e);
     }
+    return Promise.resolve();
+  };
+
+  window.saveMenuItemToCloud = async function (item) {
+    if (window.ApiClient && ApiClient.isConfigured()) {
+      var image = item.image || "";
+      if (image.indexOf("data:image/") === 0) {
+        var up = await ApiClient.uploadMenuImage(item.id, image);
+        if (up.ok && up.url) {
+          item = Object.assign({}, item, { image: up.url });
+        }
+      }
+      var r = await ApiClient.upsertMenuItem(item);
+      if (!r.ok) throw new Error(r.error || "Erro ao salvar item.");
+      return r.item || item;
+    }
+    window.saveMenuCatalog();
+    return item;
+  };
+
+  window.deleteMenuItemFromCloud = async function (id) {
+    if (window.ApiClient && ApiClient.isConfigured()) {
+      var r = await ApiClient.deleteMenuItem(id);
+      if (!r.ok) throw new Error(r.error || "Erro ao remover item.");
+      return;
+    }
+    window.saveMenuCatalog();
   };
 
   window.resetMenuCatalog = function () {

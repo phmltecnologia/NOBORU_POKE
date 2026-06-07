@@ -1,20 +1,11 @@
 (function () {
   var USERS_KEY = "mercado_users";
   var SESSION_KEY = "mercado_session";
+  var cachedUser = null;
+  var initPromise = null;
 
-  function getUsers() {
-    try {
-      var raw = localStorage.getItem(USERS_KEY);
-      if (!raw) return [];
-      var arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  function setUsers(list) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(list));
+  function useApi() {
+    return window.ApiClient && ApiClient.isConfigured();
   }
 
   function normalizePhone(s) {
@@ -39,13 +30,6 @@
     return v.formatted || String(value || "").trim();
   }
 
-  function normalizeEmail(s) {
-    return String(s || "")
-      .trim()
-      .toLowerCase();
-  }
-
-  /** Normaliza para YYYY-MM-DD (aceita input type=date ou DD/MM/AAAA) */
   function normalizeBirthDate(s) {
     var raw = String(s || "").trim();
     if (!raw) return "";
@@ -56,13 +40,7 @@
       var m = parseInt(digits.slice(2, 4), 10);
       var y = parseInt(digits.slice(4, 8), 10);
       if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1900 && y <= 2100) {
-        return (
-          String(y) +
-          "-" +
-          String(m).padStart(2, "0") +
-          "-" +
-          String(d).padStart(2, "0")
-        );
+        return String(y) + "-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0");
       }
     }
     return "";
@@ -86,69 +64,6 @@
     return p[2] + "/" + p[1] + "/" + p[0];
   }
 
-  function fullName(user) {
-    var first = String(user.firstName || "").trim();
-    var last = String(user.lastName || "").trim();
-    if (first || last) return (first + " " + last).trim();
-    return String(user.name || "").trim();
-  }
-
-  function splitLegacyName(name) {
-    var parts = String(name || "")
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
-    if (!parts.length) return { firstName: "", lastName: "" };
-    if (parts.length === 1) return { firstName: parts[0], lastName: "" };
-    return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
-  }
-
-  function findByPhone(phone) {
-    var p = normalizePhone(phone);
-    if (!p) return null;
-    var list = getUsers();
-    for (var i = 0; i < list.length; i++) {
-      if (normalizePhone(list[i].phone) === p) return { user: list[i], index: i };
-    }
-    return null;
-  }
-
-  function findByEmail(email) {
-    var e = normalizeEmail(email);
-    if (!e) return null;
-    var list = getUsers();
-    for (var i = 0; i < list.length; i++) {
-      if (normalizeEmail(list[i].email) === e) return { user: list[i], index: i };
-    }
-    return null;
-  }
-
-  function resolveSessionUser(sessionValue) {
-    if (!sessionValue) return null;
-    var byPhone = findByPhone(sessionValue);
-    if (byPhone) return byPhone;
-    if (sessionValue.indexOf("@") !== -1) {
-      return findByEmail(sessionValue);
-    }
-    return null;
-  }
-
-  function setSessionForUser(user) {
-    localStorage.setItem(SESSION_KEY, normalizePhone(user.phone));
-  }
-
-  function birthDateMatches(user, input) {
-    var iso = normalizeBirthDate(input);
-    if (!iso) return false;
-    if (user.birthDate) {
-      return user.birthDate === iso;
-    }
-    if (user.password) {
-      return user.password === iso || user.password === input;
-    }
-    return false;
-  }
-
   function buildAddress(data) {
     return {
       cep: String(data.cep).trim(),
@@ -169,7 +84,57 @@
     return null;
   }
 
-  function userToPublic(u) {
+  function mapApiUser(u) {
+    if (!u) return null;
+    return {
+      id: u.id,
+      firstName: u.firstName || "",
+      lastName: u.lastName || "",
+      name: u.name || "",
+      phone: u.phone || "",
+      birthDate: u.birthDate || "",
+      birthDateBR: formatBirthDateBR(u.birthDate || ""),
+      role: u.role || "customer",
+      address: u.address || null,
+    };
+  }
+
+  /* ---------- localStorage (fallback dev) ---------- */
+
+  function getUsers() {
+    try {
+      var raw = localStorage.getItem(USERS_KEY);
+      if (!raw) return [];
+      var arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function setUsers(list) {
+    localStorage.setItem(USERS_KEY, JSON.stringify(list));
+  }
+
+  function findByPhoneLocal(phone) {
+    var p = normalizePhone(phone);
+    if (!p) return null;
+    var list = getUsers();
+    for (var i = 0; i < list.length; i++) {
+      if (normalizePhone(list[i].phone) === p) return { user: list[i], index: i };
+    }
+    return null;
+  }
+
+  function birthDateMatchesLocal(user, input) {
+    var iso = normalizeBirthDate(input);
+    if (!iso) return false;
+    if (user.birthDate) return user.birthDate === iso;
+    if (user.password) return user.password === iso || user.password === input;
+    return false;
+  }
+
+  function userToPublicLocal(u) {
     var addr = u.address;
     var copy = addr
       ? {
@@ -181,36 +146,96 @@
           city: addr.city,
         }
       : null;
-    var legacy = splitLegacyName(u.name);
+    var first = u.firstName || (u.name || "").split(" ")[0] || "";
+    var last = u.lastName || (u.name || "").split(" ").slice(1).join(" ") || "";
     return {
-      firstName: u.firstName || legacy.firstName,
-      lastName: u.lastName || legacy.lastName,
-      name: fullName(u),
+      firstName: first,
+      lastName: last,
+      name: (first + " " + last).trim() || u.name,
       phone: u.phone,
       birthDate: u.birthDate || "",
       birthDateBR: formatBirthDateBR(u.birthDate || ""),
+      role: u.role || "customer",
       address: copy,
     };
   }
 
-  function register(data) {
-    var phoneCheck = checkPhone(data.phone);
-    if (!phoneCheck.ok) return { ok: false, error: phoneCheck.error };
-    var phoneDigits = phoneCheck.digits;
-    if (findByPhone(phoneDigits)) {
-      return { ok: false, error: "Este telefone já está cadastrado." };
+  function getCurrentUserLocal() {
+    if (!localStorage.getItem(SESSION_KEY)) return null;
+    var found = findByPhoneLocal(localStorage.getItem(SESSION_KEY));
+    if (!found) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return userToPublicLocal(found.user);
+  }
+
+  /* ---------- API + init ---------- */
+
+  function init() {
+    if (!initPromise) {
+      initPromise = (async function () {
+        if (!useApi()) {
+          cachedUser = getCurrentUserLocal();
+          return;
+        }
+        if (!ApiClient.getToken()) {
+          cachedUser = null;
+          return;
+        }
+        var r = await ApiClient.get("me");
+        if (r.ok && r.user) {
+          cachedUser = mapApiUser(r.user);
+        } else {
+          ApiClient.clearToken();
+          cachedUser = null;
+        }
+      })();
+    }
+    return initPromise;
+  }
+
+  function isLoggedIn() {
+    if (useApi()) return Boolean(ApiClient.getToken() && cachedUser);
+    return Boolean(localStorage.getItem(SESSION_KEY));
+  }
+
+  function isAdmin() {
+    var u = getCurrentUser();
+    return u && u.role === "admin";
+  }
+
+  function getCurrentUser() {
+    if (useApi()) return cachedUser;
+    return getCurrentUserLocal();
+  }
+
+  function getCurrentUserForMessage() {
+    return getCurrentUser();
+  }
+
+  async function register(data) {
+    if (useApi()) {
+      var r = await ApiClient.post("register", data, false);
+      if (!r.ok) return { ok: false, error: r.error };
+      ApiClient.setToken(r.token);
+      cachedUser = mapApiUser(r.user);
+      return { ok: true };
     }
 
+    var phoneCheck = checkPhone(data.phone);
+    if (!phoneCheck.ok) return { ok: false, error: phoneCheck.error };
+    if (findByPhoneLocal(phoneCheck.digits)) {
+      return { ok: false, error: "Este telefone já está cadastrado." };
+    }
     var firstName = String(data.firstName || "").trim();
     var lastName = String(data.lastName || "").trim();
     if (!firstName) return { ok: false, error: "Informe o nome." };
     if (!lastName) return { ok: false, error: "Informe o sobrenome." };
-
     var birthIso = normalizeBirthDate(data.birthDate);
     if (!birthIso || !isValidBirthDate(birthIso)) {
       return { ok: false, error: "Informe uma data de nascimento válida." };
     }
-
     var addrErr = validateAddress(data);
     if (addrErr) return { ok: false, error: addrErr };
 
@@ -219,66 +244,63 @@
       lastName: lastName,
       birthDate: birthIso,
       phone: formatPhoneStored(data.phone),
+      role: "customer",
       address: buildAddress(data),
     };
-
     var list = getUsers();
     list.push(user);
     setUsers(list);
-    setSessionForUser(user);
+    localStorage.setItem(SESSION_KEY, phoneCheck.digits);
+    cachedUser = userToPublicLocal(user);
     return { ok: true };
   }
 
-  function login(phone, birthDateInput) {
+  async function login(phone, birthDateInput) {
+    if (useApi()) {
+      var r = await ApiClient.post(
+        "login",
+        { phone: phone, birthDate: birthDateInput },
+        false
+      );
+      if (!r.ok) return { ok: false, error: r.error };
+      ApiClient.setToken(r.token);
+      cachedUser = mapApiUser(r.user);
+      return { ok: true };
+    }
+
     var digits = normalizePhone(phone);
     if (!digits) return { ok: false, error: "Informe o telefone." };
-
-    var found = findByPhone(digits);
-    if (!found && String(phone || "").indexOf("@") !== -1) {
-      found = findByEmail(phone);
-    }
-    if (!found) {
+    var found = findByPhoneLocal(digits);
+    if (!found) return { ok: false, error: "Telefone ou data de nascimento incorretos." };
+    if (!birthDateMatchesLocal(found.user, birthDateInput)) {
       return { ok: false, error: "Telefone ou data de nascimento incorretos." };
     }
-    if (!birthDateMatches(found.user, birthDateInput)) {
-      return { ok: false, error: "Telefone ou data de nascimento incorretos." };
-    }
-    setSessionForUser(found.user);
+    localStorage.setItem(SESSION_KEY, digits);
+    cachedUser = userToPublicLocal(found.user);
     return { ok: true };
   }
 
-  function logout() {
-    localStorage.removeItem(SESSION_KEY);
-  }
-
-  function isLoggedIn() {
-    return Boolean(localStorage.getItem(SESSION_KEY));
-  }
-
-  function getCurrentUser() {
-    if (!isLoggedIn()) return null;
-    var session = localStorage.getItem(SESSION_KEY);
-    var found = resolveSessionUser(session);
-    if (!found) {
-      logout();
-      return null;
+  async function logout() {
+    if (useApi()) {
+      await ApiClient.post("logout", {});
+      ApiClient.clearToken();
+      cachedUser = null;
+      return;
     }
-    return userToPublic(found.user);
+    localStorage.removeItem(SESSION_KEY);
+    cachedUser = null;
   }
 
-  function getCurrentUserForMessage() {
-    return getCurrentUser();
-  }
+  async function resetPassword(data) {
+    if (useApi()) {
+      var r = await ApiClient.post("reset-birthdate", data, false);
+      return r.ok ? { ok: true } : { ok: false, error: r.error };
+    }
 
-  function resetPassword(data) {
     var phoneCheck = checkPhone(data.phone);
     if (!phoneCheck.ok) return { ok: false, error: phoneCheck.error };
-    var phoneDigits = phoneCheck.digits;
-    var found = findByPhone(phoneDigits);
-    if (!found) {
-      return { ok: false, error: "Não encontramos uma conta com este telefone." };
-    }
-
+    var found = findByPhoneLocal(phoneCheck.digits);
+    if (!found) return { ok: false, error: "Não encontramos uma conta com este telefone." };
     var birthIso = normalizeBirthDate(data.birthDate);
     var confirmIso = normalizeBirthDate(data.birthDateConfirm);
     if (!birthIso || !isValidBirthDate(birthIso)) {
@@ -287,21 +309,40 @@
     if (birthIso !== confirmIso) {
       return { ok: false, error: "As datas de nascimento não coincidem." };
     }
-
     found.user.birthDate = birthIso;
-    delete found.user.password;
     var list = getUsers();
     list[found.index] = found.user;
     setUsers(list);
     return { ok: true };
   }
 
-  function updateProfile(data) {
+  async function updateProfile(data) {
+    if (useApi()) {
+      var body = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        cep: data.cep,
+        street: data.street,
+        number: data.number,
+        complement: data.complement,
+        neighborhood: data.neighborhood,
+        city: data.city,
+      };
+      if (data.birthDate) {
+        body.birthDate = data.birthDate;
+        body.currentBirthDate = data.currentBirthDate;
+      }
+      var r = await ApiClient.patch("me", body);
+      if (!r.ok) return { ok: false, error: r.error };
+      cachedUser = mapApiUser(r.user);
+      return { ok: true };
+    }
+
     if (!isLoggedIn()) return { ok: false, error: "Não autenticado." };
-    var session = localStorage.getItem(SESSION_KEY);
-    var found = resolveSessionUser(session);
+    var found = findByPhoneLocal(localStorage.getItem(SESSION_KEY));
     if (!found) {
-      logout();
+      localStorage.removeItem(SESSION_KEY);
       return { ok: false, error: "Sessão inválida. Faça login de novo." };
     }
 
@@ -311,25 +352,14 @@
     if (!lastName) return { ok: false, error: "Informe o sobrenome." };
     var phoneCheck = checkPhone(data.phone);
     if (!phoneCheck.ok) return { ok: false, error: phoneCheck.error };
-
-    var newDigits = phoneCheck.digits;
-    var currentDigits = normalizePhone(found.user.phone);
-    if (newDigits !== currentDigits) {
-      var other = findByPhone(newDigits);
-      if (other && other.index !== found.index) {
-        return { ok: false, error: "Este telefone já está em uso por outra conta." };
-      }
-    }
-
     var addrErr = validateAddress(data);
     if (addrErr) return { ok: false, error: addrErr };
 
     var u = found.user;
     u.firstName = firstName;
     u.lastName = lastName;
-    delete u.name;
     u.phone = formatPhoneStored(data.phone);
-    delete u.email;
+    u.address = buildAddress(data);
 
     if (data.birthDate) {
       var newBirth = normalizeBirthDate(data.birthDate);
@@ -339,27 +369,27 @@
       if (!data.currentBirthDate) {
         return { ok: false, error: "Informe a data de nascimento atual para alterá-la." };
       }
-      if (!birthDateMatches(u, data.currentBirthDate)) {
+      if (!birthDateMatchesLocal(u, data.currentBirthDate)) {
         return { ok: false, error: "A data de nascimento atual não confere." };
       }
       u.birthDate = newBirth;
-      delete u.password;
     }
-
-    u.address = buildAddress(data);
 
     var list = getUsers();
     list[found.index] = u;
     setUsers(list);
-    setSessionForUser(u);
+    localStorage.setItem(SESSION_KEY, phoneCheck.digits);
+    cachedUser = userToPublicLocal(u);
     return { ok: true };
   }
 
   window.Auth = {
+    init: init,
     register: register,
     login: login,
     logout: logout,
     isLoggedIn: isLoggedIn,
+    isAdmin: isAdmin,
     getCurrentUser: getCurrentUser,
     updateProfile: updateProfile,
     resetPassword: resetPassword,

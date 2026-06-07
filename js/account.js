@@ -97,7 +97,7 @@
     PhoneField.init(form);
   }
 
-  form.addEventListener("submit", function (e) {
+  form.addEventListener("submit", async function (e) {
     e.preventDefault();
     var phoneEl = document.getElementById("acc-phone");
     var phoneVal = phoneEl ? phoneEl.value : "";
@@ -137,7 +137,7 @@
       data.birthDate = newBirth;
       data.currentBirthDate = currentBirth;
     }
-    var r = Auth.updateProfile(data);
+    var r = await Auth.updateProfile(data);
     if (r.ok) {
       showMsg("Dados salvos com sucesso.");
       updateGreeting();

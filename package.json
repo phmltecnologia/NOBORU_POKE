@@ -1,0 +1,12 @@
+{
+  "name": "noboru-poke",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "config": "node scripts/generate-config.mjs",
+    "db:migrate": "node scripts/run-migration.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}

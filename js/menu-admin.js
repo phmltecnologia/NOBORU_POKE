@@ -131,10 +131,18 @@
         bDel.className = "menuadmin-icobtn menuadmin-icobtn--del";
         bDel.setAttribute("aria-label", "Excluir");
         bDel.textContent = "Excluir";
-        bDel.addEventListener("click", function () {
+        bDel.addEventListener("click", async function () {
           if (
             !confirm("Remover “" + item.name + "” do cardápio? Será removido também do carrinho, se houver.")
           ) {
+            return;
+          }
+          try {
+            if (window.deleteMenuItemFromCloud) {
+              await deleteMenuItemFromCloud(String(item.id));
+            }
+          } catch (ex) {
+            showMsg(ex.message || "Erro ao remover.", true);
             return;
           }
           var idx = -1;
@@ -146,7 +154,7 @@
           }
           if (idx < 0) return;
           window.MENU.splice(idx, 1);
-          window.saveMenuCatalog();
+          await window.saveMenuCatalog();
           if (window.MercadoApp && MercadoApp.removeFromCartByProductId) {
             MercadoApp.removeFromCartByProductId(String(item.id));
           }
@@ -471,7 +479,7 @@
   initImageField();
 
   if (form) {
-    form.addEventListener("submit", function (e) {
+    form.addEventListener("submit", async function (e) {
       e.preventDefault();
       var name = (document.getElementById("m-name").value || "").trim();
       var priceRaw = document.getElementById("m-price").value;
@@ -491,25 +499,25 @@
       }
 
       var idExisting = (editId && editId.value) || "";
+      var obj;
       if (idExisting) {
         for (var i = 0; i < window.MENU.length; i++) {
           if (String(window.MENU[i].id) === idExisting) {
-            window.MENU[i] = {
+            obj = {
               id: idExisting,
               name: name,
               price: price,
               desc: desc,
               category: category,
             };
-            if (image) window.MENU[i].image = image;
-            else delete window.MENU[i].image;
+            if (image) obj.image = image;
+            window.MENU[i] = obj;
             break;
           }
         }
-        showMsg("Item atualizado.");
       } else {
         var newId = nextMenuId();
-        var obj = {
+        obj = {
           id: newId,
           name: name,
           price: price,
@@ -518,9 +526,28 @@
         };
         if (image) obj.image = image;
         window.MENU.push(obj);
-        showMsg("Item adicionado.");
       }
-      window.saveMenuCatalog();
+
+      try {
+        if (window.saveMenuItemToCloud) {
+          var saved = await saveMenuItemToCloud(obj);
+          if (saved) {
+            for (var k = 0; k < window.MENU.length; k++) {
+              if (String(window.MENU[k].id) === String(saved.id)) {
+                window.MENU[k] = saved;
+                break;
+              }
+            }
+          }
+        } else {
+          await window.saveMenuCatalog();
+        }
+      } catch (ex) {
+        showMsg(ex.message || "Erro ao salvar.", true);
+        return;
+      }
+
+      showMsg(idExisting ? "Item atualizado." : "Item adicionado.");
       refreshShopUI();
       renderList();
       resetForm();
@@ -536,7 +563,13 @@
   }
 
   if (btnOpen) {
-    btnOpen.addEventListener("click", openOverlay);
+    btnOpen.addEventListener("click", function () {
+      if (window.Auth && Auth.isAdmin && !Auth.isAdmin()) {
+        alert("Somente administradores podem editar o cardápio.");
+        return;
+      }
+      openOverlay();
+    });
   }
   var bClose = document.getElementById("menuadmin-close");
   if (bClose) {

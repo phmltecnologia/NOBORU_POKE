@@ -649,7 +649,7 @@
     }
 
     if (form) {
-      form.addEventListener("submit", function (e) {
+      form.addEventListener("submit", async function (e) {
         e.preventDefault();
         if (!window.Auth) return;
         var u = Auth.getCurrentUser();
@@ -665,7 +665,7 @@
           neighborhood: document.getElementById("addr-neighborhood").value,
           city: document.getElementById("addr-city").value,
         };
-        var r = Auth.updateProfile(data);
+        var r = await Auth.updateProfile(data);
         if (!r.ok) {
           show(r.error, true);
           return;
@@ -1273,13 +1273,21 @@
     updateCart: updateCartUI,
   };
 
-  renderMenu();
-  setupSearch();
-  updateCartUI();
-  setupCartPanel();
-  setupPayModal();
-  setupPixModal();
-  setupAddrModal();
-  setupPokeModal();
-  setupPokeNoteModal();
+  function bootShop() {
+    renderMenu();
+    setupSearch();
+    updateCartUI();
+    setupCartPanel();
+    setupPayModal();
+    setupPixModal();
+    setupAddrModal();
+    setupPokeModal();
+    setupPokeNoteModal();
+  }
+
+  if (window.whenMenuReady) {
+    window.whenMenuReady(bootShop);
+  } else {
+    bootShop();
+  }
 })();

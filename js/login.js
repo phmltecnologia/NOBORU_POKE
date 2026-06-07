@@ -121,7 +121,7 @@
     }
   }
 
-  formLogin.addEventListener("submit", function (e) {
+  formLogin.addEventListener("submit", async function (e) {
     e.preventDefault();
     var phoneEl = document.getElementById("login-phone");
     var phone = phoneFromInput("login-phone");
@@ -131,7 +131,7 @@
       return;
     }
     var birthDate = document.getElementById("login-birthdate").value;
-    var r = Auth.login(phone, birthDate);
+    var r = await Auth.login(phone, birthDate);
     if (r.ok) {
       showMessage("Entrando…", false);
       location.href = "index.html";
@@ -140,7 +140,7 @@
     }
   });
 
-  formRegister.addEventListener("submit", function (e) {
+  formRegister.addEventListener("submit", async function (e) {
     e.preventDefault();
     var phone = phoneFromInput("reg-phone");
     if (phone === null) {
@@ -161,7 +161,7 @@
       neighborhood: document.getElementById("reg-neighborhood").value,
       city: document.getElementById("reg-city").value,
     };
-    var r = Auth.register(data);
+    var r = await Auth.register(data);
     if (r.ok) {
       showMessage("Conta criada! Redirecionando…", false);
       location.href = "index.html";
@@ -171,7 +171,7 @@
   });
 
   if (formReset) {
-    formReset.addEventListener("submit", function (e) {
+    formReset.addEventListener("submit", async function (e) {
       e.preventDefault();
       var phone = phoneFromInput("reset-phone");
       if (phone === null) {
@@ -185,7 +185,7 @@
         birthDate: document.getElementById("reset-birthdate").value,
         birthDateConfirm: document.getElementById("reset-birthdate2").value,
       };
-      var r = Auth.resetPassword(data);
+      var r = await Auth.resetPassword(data);
       if (r.ok) {
         showMessage("Data atualizada! Entre com a nova data de nascimento.", false);
         document.getElementById("login-phone").value = data.phone;
