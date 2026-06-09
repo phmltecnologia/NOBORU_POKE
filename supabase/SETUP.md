@@ -17,7 +17,7 @@ Login admin:
 
 | Campo | Valor |
 |-------|--------|
-| Telefone | `(48) 9807-8186` |
+| Telefone | `48998078186` ou `(48) 99807-8186` |
 | Data de nascimento | `2006-03-11` |
 
 ---

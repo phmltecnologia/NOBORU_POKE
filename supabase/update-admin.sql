@@ -1,14 +1,16 @@
--- Atualiza admin no banco já existente (cole no SQL Editor e Run)
--- Login: (48) 9807-8186 | nascimento 2006-03-11
+-- Corrige login admin no banco (cole no SQL Editor e Run)
+-- Login: 48998078186 → (48) 99807-8186 | nascimento 2006-03-11
 
-UPDATE profiles SET role = 'customer' WHERE phone_digits = '5548991636944';
+UPDATE profiles SET role = 'customer'
+WHERE phone_digits IN ('5548991636944', '5548998078186')
+   OR role = 'admin';
 
 INSERT INTO profiles (
   phone_digits, phone_display, first_name, last_name, role,
   birth_date, birth_date_hash, address
 ) VALUES (
-  '5548998078186',
-  '(48) 9807-8186',
+  '55489998078186',
+  '(48) 99807-8186',
   'Noboru',
   'Admin',
   'admin',
@@ -24,4 +26,4 @@ ON CONFLICT (phone_digits) DO UPDATE SET
   birth_date = EXCLUDED.birth_date,
   birth_date_hash = EXCLUDED.birth_date_hash;
 
-SELECT phone_display, role, birth_date FROM profiles WHERE role = 'admin';
+SELECT phone_digits, phone_display, role, birth_date FROM profiles WHERE role = 'admin';
