@@ -93,13 +93,13 @@ INSERT INTO menu_items (id, name, "desc", category, price, custom_poke, sort_ord
   ('19', 'Chá gelado 500ml', 'Pêssego, limão ou verde', 'Bebidas', 8.0, false, 20)
 ON CONFLICT (id) DO NOTHING;
 
--- Admin: telefone (48) 99163-6944 | nascimento 2006-03-11
+-- Admin: telefone (48) 9807-8186 | nascimento 2006-03-11
 INSERT INTO profiles (
   phone_digits, phone_display, first_name, last_name, role,
   birth_date, birth_date_hash, address
 ) VALUES (
-  '5548991636944',
-  '(48) 99163-6944',
+  '5548998078186',
+  '(48) 9807-8186',
   'Noboru',
   'Admin',
   'admin',

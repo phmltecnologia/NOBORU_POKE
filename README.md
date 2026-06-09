@@ -56,7 +56,7 @@ Sem Supabase configurado, o site usa **localStorage** (modo protótipo, dados s�
 
 | Campo | Valor |
 |-------|--------|
-| Telefone | `(48) 99163-6944` |
+| Telefone | `(48) 9807-8186` |
 | Data de nascimento | `2006-03-11` |
 | Permissão | `admin` — único perfil que vê o botão **Cardápio** |
 

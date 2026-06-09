@@ -1,14 +1,14 @@
 -- Atualiza admin no banco já existente (cole no SQL Editor e Run)
--- Novo login: (48) 99163-6944 | nascimento 2006-03-11
+-- Login: (48) 9807-8186 | nascimento 2006-03-11
 
-UPDATE profiles SET role = 'customer' WHERE phone_digits = '5548998078186';
+UPDATE profiles SET role = 'customer' WHERE phone_digits = '5548991636944';
 
 INSERT INTO profiles (
   phone_digits, phone_display, first_name, last_name, role,
   birth_date, birth_date_hash, address
 ) VALUES (
-  '5548991636944',
-  '(48) 99163-6944',
+  '5548998078186',
+  '(48) 9807-8186',
   'Noboru',
   'Admin',
   'admin',

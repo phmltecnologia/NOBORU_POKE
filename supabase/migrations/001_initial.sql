@@ -99,7 +99,7 @@ INSERT INTO menu_items (id, name, "desc", category, price, custom_poke, sort_ord
 ON CONFLICT (id) DO NOTHING;
 
 -- Admin da loja (telefone WhatsApp da loja)
--- Login: telefone (48) 99163-6944 | data de nascimento: 2006-03-11
+-- Login: telefone (48) 9807-8186 | data de nascimento: 2006-03-11
 INSERT INTO profiles (
   phone_digits,
   phone_display,
@@ -110,8 +110,8 @@ INSERT INTO profiles (
   birth_date_hash,
   address
 ) VALUES (
-  '5548991636944',
-  '(48) 99163-6944',
+  '5548998078186',
+  '(48) 9807-8186',
   'Noboru',
   'Admin',
   'admin',
