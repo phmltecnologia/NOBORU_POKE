@@ -11,15 +11,13 @@
   var titleForm = document.getElementById("menuadmin-form-title");
   var btnAdd = document.getElementById("menuadmin-btn-add");
   var btnOpen = document.getElementById("btn-menuadmin");
+  var layersRoot = document.getElementById("m-option-layers");
+  var currentLayers = [];
 
   function refreshShopUI() {
     if (window.MercadoApp) {
-      if (MercadoApp.renderMenu) {
-        MercadoApp.renderMenu();
-      }
-      if (MercadoApp.updateCart) {
-        MercadoApp.updateCart();
-      }
+      if (MercadoApp.renderMenu) MercadoApp.renderMenu();
+      if (MercadoApp.updateCart) MercadoApp.updateCart();
     }
   }
 
@@ -57,33 +55,46 @@
     return String(max + 1);
   }
 
-  function categoryDatalist() {
-    var seen = {};
-    var out = [];
-    function addList(arr) {
-      for (var i = 0; i < arr.length; i++) {
-        var c = arr[i].category || "Outros";
-        if (!seen[c]) {
-          seen[c] = true;
-          out.push(c);
-        }
-      }
+  function categoryNameById(id) {
+    var cats = window.CATEGORIES || [];
+    for (var i = 0; i < cats.length; i++) {
+      if (cats[i].id === id) return cats[i].name;
     }
-    addList(window.MENU || []);
-    if (window.MENU_DEFAULT) addList(window.MENU_DEFAULT);
-    return out.sort();
+    return "Outros";
   }
 
-  function refreshDatalist() {
-    var dl = document.getElementById("menuadmin-cat-list");
-    if (!dl) return;
-    dl.innerHTML = "";
-    var list = categoryDatalist();
-    for (var i = 0; i < list.length; i++) {
-      var o = document.createElement("option");
-      o.value = list[i];
-      dl.appendChild(o);
+  function refreshCategorySelect() {
+    if (window.__menuCategoriesAdmin && __menuCategoriesAdmin.refreshSelect) {
+      __menuCategoriesAdmin.refreshSelect();
     }
+  }
+
+  function mountLayersEditor(layers) {
+    currentLayers = layers || [];
+    if (window.MenuOptionsEditor && layersRoot) {
+      MenuOptionsEditor.mount(layersRoot, currentLayers, function (updated) {
+        currentLayers = updated;
+      });
+    }
+  }
+
+  function setupTabs() {
+    var tabs = overlay.querySelectorAll(".menuadmin-tabs__btn");
+    var panelItems = document.getElementById("menuadmin-tab-items");
+    var panelCats = document.getElementById("menuadmin-tab-categories");
+    tabs.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var tab = btn.getAttribute("data-tab");
+        tabs.forEach(function (b) {
+          b.classList.toggle("menuadmin-tabs__btn--active", b === btn);
+        });
+        if (panelItems) panelItems.hidden = tab !== "items";
+        if (panelCats) panelCats.hidden = tab !== "categories";
+        if (tab === "categories" && window.__menuCategoriesAdmin) {
+          __menuCategoriesAdmin.render();
+        }
+      });
+    });
   }
 
   function renderList() {
@@ -91,14 +102,10 @@
     var m = window.MENU;
     listEl.innerHTML = "";
     if (m.length === 0) {
-      listEl.appendChild(
-        (function () {
-          var p = document.createElement("p");
-          p.className = "menuadmin-empty";
-          p.textContent = "Nenhum item. Use “Novo item” abaixo.";
-          return p;
-        })()
-      );
+      var p = document.createElement("p");
+      p.className = "menuadmin-empty";
+      p.textContent = "Nenhum item. Use “Novo item” abaixo.";
+      listEl.appendChild(p);
       return;
     }
     for (var i = 0; i < m.length; i++) {
@@ -112,8 +119,13 @@
         n.textContent = item.name;
         var meta = document.createElement("div");
         meta.className = "menuadmin-row__meta";
+        var layerCount = (item.optionLayers || []).length;
         meta.textContent =
-          (item.category || "—") + " · " + formatBRL(item.price) + (item.id ? " · id " + item.id : "");
+          (item.categoryName || item.category || "—") +
+          " · " +
+          formatBRL(item.price) +
+          (layerCount ? " · " + layerCount + " camada(s)" : "") +
+          (item.id ? " · id " + item.id : "");
         info.appendChild(n);
         info.appendChild(meta);
         var actions = document.createElement("div");
@@ -121,7 +133,6 @@
         var bEdit = document.createElement("button");
         bEdit.type = "button";
         bEdit.className = "menuadmin-icobtn";
-        bEdit.setAttribute("aria-label", "Editar");
         bEdit.textContent = "Editar";
         bEdit.addEventListener("click", function () {
           startEdit(item);
@@ -129,40 +140,24 @@
         var bDel = document.createElement("button");
         bDel.type = "button";
         bDel.className = "menuadmin-icobtn menuadmin-icobtn--del";
-        bDel.setAttribute("aria-label", "Excluir");
         bDel.textContent = "Excluir";
         bDel.addEventListener("click", async function () {
-          if (
-            !confirm("Remover “" + item.name + "” do cardápio? Será removido também do carrinho, se houver.")
-          ) {
-            return;
-          }
+          if (!confirm("Remover “" + item.name + "” do cardápio?")) return;
           try {
-            if (window.deleteMenuItemFromCloud) {
-              await deleteMenuItemFromCloud(String(item.id));
-            }
+            if (window.deleteMenuItemFromCloud) await deleteMenuItemFromCloud(String(item.id));
           } catch (ex) {
             showMsg(ex.message || "Erro ao remover.", true);
             return;
           }
-          var idx = -1;
-          for (var j = 0; j < window.MENU.length; j++) {
-            if (String(window.MENU[j].id) === String(item.id)) {
-              idx = j;
-              break;
-            }
-          }
-          if (idx < 0) return;
-          window.MENU.splice(idx, 1);
+          window.MENU = window.MENU.filter(function (x) {
+            return String(x.id) !== String(item.id);
+          });
           await window.saveMenuCatalog();
-          if (window.MercadoApp && MercadoApp.removeFromCartByProductId) {
-            MercadoApp.removeFromCartByProductId(String(item.id));
-          }
+          if (MercadoApp.removeFromCartByProductId) MercadoApp.removeFromCartByProductId(String(item.id));
           refreshShopUI();
           renderList();
           showMsg("Item removido.");
           resetForm();
-          refreshDatalist();
         });
         actions.appendChild(bEdit);
         actions.appendChild(bDel);
@@ -178,14 +173,13 @@
   }
 
   function resetForm() {
-    if (form) {
-      form.reset();
-    }
+    if (form) form.reset();
     if (editId) editId.value = "";
     if (titleForm) titleForm.textContent = "Novo item";
-    if (window.__menuImage && window.__menuImage.clearImageUI) {
-      window.__menuImage.clearImageUI();
-    }
+    currentLayers = [];
+    mountLayersEditor([]);
+    if (window.__menuImage && window.__menuImage.clearImageUI) window.__menuImage.clearImageUI();
+    refreshCategorySelect();
   }
 
   function startEdit(item) {
@@ -196,20 +190,21 @@
     document.getElementById("m-name").value = item.name || "";
     document.getElementById("m-price").value = String(item.price).replace(".", ",");
     document.getElementById("m-desc").value = item.desc || "";
-    document.getElementById("m-category").value = item.category || "";
+    refreshCategorySelect();
+    var catSel = document.getElementById("m-category");
+    if (catSel) catSel.value = item.categoryId || item.category || "";
+    mountLayersEditor(item.optionLayers || []);
     if (window.__menuImage && window.__menuImage.setFromStoredValue) {
       window.__menuImage.setFromStoredValue(item.image || "");
     }
     var panel = document.getElementById("menuadmin-form-panel");
-    if (panel) {
-      panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
+    if (panel) panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   function openOverlay() {
     showMsg("");
     resetForm();
-    refreshDatalist();
+    refreshCategorySelect();
     renderList();
     overlay.hidden = false;
     overlay.setAttribute("aria-hidden", "false");
@@ -249,42 +244,21 @@
 
     function clearImageUI() {
       hidden.value = "";
-      if (urlIn) {
-        urlIn.value = "";
-      }
+      if (urlIn) urlIn.value = "";
       fileIn.value = "";
       if (prevImg) {
         prevImg.removeAttribute("src");
         prevImg.alt = "Pré-visualização";
       }
-      if (empty) {
-        empty.hidden = false;
-      }
-      if (preview) {
-        preview.hidden = true;
-      }
-      if (zone) {
-        zone.classList.remove("img-drop__zone--drag");
-      }
+      if (empty) empty.hidden = false;
+      if (preview) preview.hidden = true;
+      if (zone) zone.classList.remove("img-drop__zone--drag");
     }
 
     function showPreviewForUrl(url) {
-      if (!prevImg || !empty || !preview) {
-        return;
-      }
+      if (!prevImg || !empty || !preview) return;
       empty.hidden = true;
       preview.hidden = false;
-      prevImg.onload = function () {
-        prevImg.onload = null;
-        prevImg.onerror = null;
-      };
-      prevImg.onerror = function () {
-        if (String(url).indexOf("data:") === 0) {
-          return;
-        }
-        showMsg("Não foi possível mostrar a imagem. Verifica o link ou a rede.", true);
-        clearImageUI();
-      };
       prevImg.src = url;
     }
 
@@ -294,16 +268,8 @@
         return;
       }
       hidden.value = s;
-      if (urlIn) {
-        if (String(s).indexOf("http") === 0) {
-          urlIn.value = s;
-        } else {
-          urlIn.value = "";
-        }
-      }
-      if (fileIn) {
-        fileIn.value = "";
-      }
+      if (urlIn) urlIn.value = String(s).indexOf("http") === 0 ? s : "";
+      fileIn.value = "";
       showPreviewForUrl(s);
     }
 
@@ -320,14 +286,11 @@
             return;
           }
           var r = Math.min(maxW / w, maxH / h, 1);
-          var nw = Math.round(w * r);
-          var nh = Math.round(h * r);
           var c = document.createElement("canvas");
-          c.width = nw;
-          c.height = nh;
-          c.getContext("2d").drawImage(img, 0, 0, nw, nh);
-          var out = c.toDataURL("image/jpeg", 0.82);
-          callback(out || dataUrl);
+          c.width = Math.round(w * r);
+          c.height = Math.round(h * r);
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          callback(c.toDataURL("image/jpeg", 0.82) || dataUrl);
         } catch (e) {
           callback(dataUrl);
         }
@@ -339,144 +302,45 @@
     }
 
     function processFile(file) {
-      if (!file) {
-        return;
-      }
-      if (!file.type || file.type.indexOf("image/") !== 0) {
-        showMsg("Escolhe um ficheiro de imagem (JPG, PNG, GIF, WebP).", true);
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        showMsg("Ficheiro demasiado grande. Tenta outro (máx. 5 MB).", true);
+      if (!file || file.type.indexOf("image/") !== 0) {
+        showMsg("Escolhe um ficheiro de imagem.", true);
         return;
       }
       var reader = new FileReader();
       reader.onload = function () {
-        var d = reader.result;
-        if (String(d).length > 2 * 1024 * 1024) {
-          showMsg("Imagem muito pesada. Escolhe um ficheiro mais pequeno.", true);
-          return;
-        }
-        compressDataUrl(d, function (small) {
-          if (String(small).length > 1.5 * 1024 * 1024) {
-            showMsg("Imagem muito pesada após ajuste. Tenta outra com menos pormenor.", true);
-            return;
-          }
+        compressDataUrl(reader.result, function (small) {
           hidden.value = small;
-          if (urlIn) {
-            urlIn.value = "";
-          }
-          if (fileIn) {
-            fileIn.value = "";
-          }
+          if (urlIn) urlIn.value = "";
+          fileIn.value = "";
           showPreviewForUrl(small);
         });
-      };
-      reader.onerror = function () {
-        showMsg("Não foi possível ler o ficheiro.", true);
       };
       reader.readAsDataURL(file);
     }
 
-    if (browse) {
-      browse.addEventListener("click", function (e) {
-        e.stopPropagation();
-        e.preventDefault();
-        if (!isMenuAdminOpen()) return;
-        fileIn.click();
-      });
-    }
-    if (fileIn) {
-      fileIn.addEventListener("change", function () {
-        if (fileIn.files && fileIn.files[0]) {
-          processFile(fileIn.files[0]);
-        }
-      });
-    }
-    if (empty) {
-      empty.addEventListener("click", function (e) {
-        if (e.target && (e.target.id === "m-image-browse" || (e.target.closest && e.target.closest("#m-image-browse")))) {
-          return;
-        }
-        e.preventDefault();
-        if (!isMenuAdminOpen()) return;
-        fileIn.click();
-      });
-    }
-    if (zone) {
-      ["dragenter", "dragover"].forEach(function (name) {
-        drop.addEventListener(name, function (e) {
-          e.preventDefault();
-          e.stopPropagation();
-          if (!isMenuAdminOpen()) return;
-          if (e.dataTransfer) {
-            e.dataTransfer.dropEffect = "copy";
-          }
-          zone.classList.add("img-drop__zone--drag");
-        });
-      });
-      drop.addEventListener("dragleave", function (e) {
-        if (!e.relatedTarget || (drop && !drop.contains(e.relatedTarget))) {
-          zone.classList.remove("img-drop__zone--drag");
-        }
-      });
-      drop.addEventListener("drop", function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!isMenuAdminOpen()) return;
-        zone.classList.remove("img-drop__zone--drag");
-        var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-        if (f) {
-          processFile(f);
-        }
-      });
-    }
-    if (clearBtn) {
-      clearBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        e.preventDefault();
-        clearImageUI();
-      });
-    }
+    if (browse) browse.addEventListener("click", function (e) {
+      e.preventDefault();
+      if (isMenuAdminOpen()) fileIn.click();
+    });
+    if (fileIn) fileIn.addEventListener("change", function () {
+      if (fileIn.files && fileIn.files[0]) processFile(fileIn.files[0]);
+    });
+    if (clearBtn) clearBtn.addEventListener("click", clearImageUI);
     if (urlIn) {
       urlIn.addEventListener("blur", function () {
         var t = (urlIn.value || "").trim();
-        if (t) {
-          if (t.indexOf("http") !== 0) {
-            showMsg("O link deve começar por http:// ou https://", true);
-            return;
-          }
+        if (t && t.indexOf("http") === 0) {
           hidden.value = t;
-          if (fileIn) {
-            fileIn.value = "";
-          }
           showPreviewForUrl(t);
-        } else {
-          if (String(hidden.value || "").indexOf("http") === 0) {
-            clearImageUI();
-          }
-        }
-      });
-    }
-    if (zone) {
-      zone.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          if (!isMenuAdminOpen()) return;
-          if (!preview || preview.hidden) {
-            fileIn.click();
-          }
         }
       });
     }
 
-    window.__menuImage = {
-      clearImageUI: clearImageUI,
-      setFromStoredValue: setFromStoredValue,
-    };
+    window.__menuImage = { clearImageUI: clearImageUI, setFromStoredValue: setFromStoredValue };
   }
 
   initImageField();
+  setupTabs();
 
   if (form) {
     form.addEventListener("submit", async function (e) {
@@ -484,7 +348,8 @@
       var name = (document.getElementById("m-name").value || "").trim();
       var priceRaw = document.getElementById("m-price").value;
       var desc = (document.getElementById("m-desc").value || "").trim();
-      var category = (document.getElementById("m-category").value || "").trim() || "Outros";
+      var categoryId = (document.getElementById("m-category").value || "").trim();
+      var categoryName = categoryNameById(categoryId);
       var h = (document.getElementById("m-image") && document.getElementById("m-image").value) || "";
       var u = (document.getElementById("m-image-url") && document.getElementById("m-image-url").value) || "";
       var image = (h || u || "").trim();
@@ -492,56 +357,46 @@
         showMsg("Informe o nome do prato ou item.", true);
         return;
       }
+      if (!categoryId) {
+        showMsg("Escolha uma categoria.", true);
+        return;
+      }
       var price = parsePriceBRL(priceRaw);
       if (isNaN(price) || price < 0) {
-        showMsg("Preço inválido. Use o formato 12,50 ou 12.5", true);
+        showMsg("Preço inválido.", true);
         return;
       }
 
+      var layers = window.MenuOptionsEditor ? MenuOptionsEditor.read() : currentLayers;
       var idExisting = (editId && editId.value) || "";
-      var obj;
-      if (idExisting) {
-        for (var i = 0; i < window.MENU.length; i++) {
-          if (String(window.MENU[i].id) === idExisting) {
-            obj = {
-              id: idExisting,
-              name: name,
-              price: price,
-              desc: desc,
-              category: category,
-            };
-            if (image) obj.image = image;
-            window.MENU[i] = obj;
-            break;
-          }
-        }
-      } else {
-        var newId = nextMenuId();
-        obj = {
-          id: newId,
-          name: name,
-          price: price,
-          desc: desc,
-          category: category,
-        };
-        if (image) obj.image = image;
-        window.MENU.push(obj);
-      }
+      var obj = {
+        id: idExisting || nextMenuId(),
+        name: name,
+        price: price,
+        desc: desc,
+        categoryId: categoryId,
+        categoryName: categoryName,
+        category: categoryName,
+        optionLayers: layers,
+      };
+      if (image) obj.image = image;
 
       try {
         if (window.saveMenuItemToCloud) {
           var saved = await saveMenuItemToCloud(obj);
-          if (saved) {
-            for (var k = 0; k < window.MENU.length; k++) {
-              if (String(window.MENU[k].id) === String(saved.id)) {
-                window.MENU[k] = saved;
-                break;
-              }
+          if (saved) obj = saved;
+        }
+        if (idExisting) {
+          for (var i = 0; i < window.MENU.length; i++) {
+            if (String(window.MENU[i].id) === String(obj.id)) {
+              window.MENU[i] = obj;
+              break;
             }
           }
         } else {
-          await window.saveMenuCatalog();
+          window.MENU.push(obj);
         }
+        await window.saveMenuCatalog();
       } catch (ex) {
         showMsg(ex.message || "Erro ao salvar.", true);
         return;
@@ -551,16 +406,14 @@
       refreshShopUI();
       renderList();
       resetForm();
-      refreshDatalist();
+      refreshCategorySelect();
     });
   }
 
-  if (btnAdd) {
-    btnAdd.addEventListener("click", function () {
-      resetForm();
-      showMsg("");
-    });
-  }
+  if (btnAdd) btnAdd.addEventListener("click", function () {
+    resetForm();
+    showMsg("");
+  });
 
   if (btnOpen) {
     btnOpen.addEventListener("click", function () {
@@ -572,13 +425,9 @@
     });
   }
   var bClose = document.getElementById("menuadmin-close");
-  if (bClose) {
-    bClose.addEventListener("click", closeOverlay);
-  }
+  if (bClose) bClose.addEventListener("click", closeOverlay);
   var bCancel = document.getElementById("menuadmin-cancel");
-  if (bCancel) {
-    bCancel.addEventListener("click", closeOverlay);
-  }
+  if (bCancel) bCancel.addEventListener("click", closeOverlay);
   overlay.addEventListener("click", function (e) {
     if (e.target === overlay) closeOverlay();
   });

@@ -13,9 +13,15 @@ Site estático (HTML/CSS/JS) com **login e cardápio na nuvem** via Supabase.
 - **Dashboard:** https://supabase.com/dashboard/project/eqlhhcnrsbyniacrqrvs  
 - **Guia passo a passo:** [`supabase/SETUP.md`](supabase/SETUP.md)
 
-1. Rode o SQL em [`supabase/RUN_IN_SQL_EDITOR.sql`](supabase/RUN_IN_SQL_EDITOR.sql) no SQL Editor.
+1. Rode o SQL em [`supabase/RUN_IN_SQL_EDITOR.sql`](supabase/RUN_IN_SQL_EDITOR.sql) e depois [`supabase/RUN_MIGRATION_002.sql`](supabase/RUN_MIGRATION_002.sql) no SQL Editor.
 2. Deploy da Edge Function `noboru` (dashboard ou CLI com `--no-verify-jwt`).
 3. Vercel: integração Supabase injeta `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` → redeploy.
+
+### Cardápio modular (admin)
+
+- **Categorias:** aba Categorias no painel admin — adicionar, ordenar e excluir.
+- **Camadas por item:** tamanho, opções (ex. salmão fresco/grelhado), ou builder completo (“Monte seu poke”).
+- Itens sem camadas continuam com botão **Adicionar** direto.
 
 ## Configuração Supabase (geral)
 
@@ -80,8 +86,12 @@ Base: `{SUPABASE_URL}/functions/v1/noboru/`
 | POST | `logout` | Sair |
 | GET/PATCH | `me` | Perfil (requer token) |
 | POST | `reset-birthdate` | Redefinir data de nascimento |
+| GET | `categories` | Lista de categorias |
+| POST | `categories` | Criar/atualizar categoria (admin) |
+| PATCH | `categories-{id}` | Atualizar categoria (admin) |
+| DELETE | `categories-{id}` | Excluir categoria vazia (admin) |
 | GET | `menu` | Cardápio público |
-| POST | `menu` | Salvar item (admin) |
+| POST | `menu` | Salvar item + `optionLayers` (admin) |
 | DELETE | `menu-{id}` | Remover item (admin) |
 | POST | `upload-image` | Upload foto (admin) |
 

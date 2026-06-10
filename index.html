@@ -297,65 +297,32 @@
     </div>
   </div>
 
-  <div class="poke-note-overlay" id="poke-note-overlay" hidden aria-hidden="true">
-    <div class="poke-modal poke-note-modal" id="poke-note-modal" role="dialog" aria-modal="true" aria-labelledby="poke-note-title">
+  <div class="item-options-overlay" id="item-options-overlay" hidden aria-hidden="true">
+    <div class="poke-modal item-options-modal" id="item-options-modal" role="dialog" aria-modal="true" aria-labelledby="item-options-title">
       <div class="poke-modal__head">
-        <h2 class="poke-modal__title" id="poke-note-title">Adicionar ao carrinho</h2>
-        <button type="button" class="poke-modal__close" id="poke-note-close" aria-label="Fechar">×</button>
+        <h2 class="poke-modal__title" id="item-options-title">Adicionar ao carrinho</h2>
+        <button type="button" class="poke-modal__close" id="item-options-close" aria-label="Fechar">×</button>
       </div>
-      <fieldset class="poke-fieldset poke-fieldset--sizes">
-        <legend class="poke-legend">Tamanho</legend>
-        <div class="poke-sizes" id="poke-note-sizes"></div>
-      </fieldset>
-      <p class="poke-note-price" id="poke-note-price"></p>
-      <div class="poke-note-desc-wrap" id="poke-note-desc-wrap" hidden>
-        <p class="poke-note-desc-label">Composição</p>
-        <p class="poke-note-desc" id="poke-note-desc"></p>
+      <p class="poke-modal__hint" id="item-options-desc"></p>
+      <div class="poke-msg" id="item-options-msg" role="status" aria-live="polite"></div>
+      <div id="item-options-layers"></div>
+      <div class="poke-summary">
+        <span class="poke-summary__label">Total</span>
+        <strong class="poke-summary__price" id="item-options-price">R$ 0,00</strong>
       </div>
       <div class="field field--note">
-        <label for="poke-note-text" class="field__label">Observação (opcional)</label>
+        <label for="item-options-note" class="field__label">Observação (opcional)</label>
         <textarea
           class="field__input field__textarea field__textarea--note"
-          id="poke-note-text"
+          id="item-options-note"
           rows="3"
           maxlength="300"
-          placeholder="Ex.: sem cebola roxa, pouco cream cheese, molho à parte…"
+          placeholder="Ex.: sem cebola roxa, pouco cream cheese…"
         ></textarea>
       </div>
       <div class="poke-actions">
-        <button type="button" class="btn btn--ghost" id="poke-note-cancel">Cancelar</button>
-        <button type="button" class="btn btn--primary" id="poke-note-add">Adicionar ao carrinho</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="poke-overlay" id="poke-overlay" hidden aria-hidden="true">
-    <div class="poke-modal" id="poke-modal" role="dialog" aria-modal="true" aria-labelledby="poke-title">
-      <div class="poke-modal__head">
-        <h2 class="poke-modal__title" id="poke-title">Monte seu poke</h2>
-        <button type="button" class="poke-modal__close" id="poke-close" aria-label="Fechar">×</button>
-      </div>
-      <p class="poke-modal__hint">Base incluída: arroz japonês e alga marinha. Escolha o tamanho e os ingredientes.</p>
-      <div class="poke-msg" id="poke-msg" role="status" aria-live="polite"></div>
-      <fieldset class="poke-fieldset">
-        <legend class="poke-legend">Tamanho</legend>
-        <div class="poke-sizes" id="poke-sizes"></div>
-      </fieldset>
-      <fieldset class="poke-fieldset">
-        <legend class="poke-legend">Proteínas <span class="poke-legend__sub">(máx. 2)</span></legend>
-        <div class="poke-ingredients poke-ingredients--protein" id="poke-proteins"></div>
-      </fieldset>
-      <fieldset class="poke-fieldset">
-        <legend class="poke-legend">Complementos</legend>
-        <div class="poke-ingredients" id="poke-extras"></div>
-      </fieldset>
-      <div class="poke-summary">
-        <span class="poke-summary__label">Total estimado</span>
-        <strong class="poke-summary__price" id="poke-price-preview">R$ 0,00</strong>
-      </div>
-      <div class="poke-actions">
-        <button type="button" class="btn btn--ghost" id="poke-cancel">Cancelar</button>
-        <button type="button" class="btn btn--primary" id="poke-add">Adicionar ao carrinho</button>
+        <button type="button" class="btn btn--ghost" id="item-options-cancel">Cancelar</button>
+        <button type="button" class="btn btn--primary" id="item-options-add">Adicionar ao carrinho</button>
       </div>
     </div>
   </div>
@@ -375,6 +342,11 @@
         </div>
         <button type="button" class="menuadmin-close" id="menuadmin-close" aria-label="Fechar">×</button>
       </div>
+      <div class="menuadmin-tabs" role="tablist">
+        <button type="button" class="menuadmin-tabs__btn menuadmin-tabs__btn--active" data-tab="items" role="tab">Itens</button>
+        <button type="button" class="menuadmin-tabs__btn" data-tab="categories" role="tab">Categorias</button>
+      </div>
+      <div class="menuadmin-tabpanel" id="menuadmin-tab-items">
       <div class="menuadmin-list-wrap">
         <div class="menuadmin-list" id="menuadmin-list" aria-label="Lista de itens do cardápio"></div>
       </div>
@@ -394,16 +366,13 @@
             </div>
             <div class="field field--grow">
               <label for="m-category" class="field__label">Categoria</label>
-              <input
-                class="field__input"
-                type="text"
-                id="m-category"
-                name="category"
-                list="menuadmin-cat-list"
-                required
-                placeholder="Ex.: Pokes"
-              />
+              <select class="field__input" id="m-category" name="category" required></select>
             </div>
+          </div>
+          <div class="field field--layers">
+            <span class="field__label">Camadas de seleção (tamanho, opções, etc.)</span>
+            <p class="field__hint">Itens sem camadas são adicionados direto ao carrinho. Use camadas para tamanhos, variações ou &quot;monte seu poke&quot;.</p>
+            <div id="m-option-layers" class="opt-editor"></div>
           </div>
           <div class="field field--desc">
             <label for="m-desc" class="field__label">Descrição</label>
@@ -459,10 +428,19 @@
           </div>
         </form>
       </div>
-      <datalist id="menuadmin-cat-list"></datalist>
+      </div>
+      <div class="menuadmin-tabpanel" id="menuadmin-tab-categories" hidden>
+        <div class="menuadmin-msg" id="menuadmin-cat-msg" role="status"></div>
+        <div class="menuadmin-cat-add">
+          <input class="field__input" type="text" id="cat-new-name" placeholder="Nome da nova categoria" />
+          <button type="button" class="btn btn--primary" id="cat-add-btn">Adicionar categoria</button>
+        </div>
+        <div class="menuadmin-categories-list" id="menuadmin-categories-list"></div>
+      </div>
     </div>
   </div>
 
+  <script src="js/menu-options.js"></script>
   <script src="js/data.js"></script>
   <script src="js/share-site.js"></script>
   <script src="js/restaurant-links.js"></script>
@@ -470,6 +448,8 @@
   <script src="js/phone-field.js"></script>
   <script src="js/app.js"></script>
   <script src="js/account.js"></script>
+  <script src="js/menu-options-editor.js"></script>
+  <script src="js/menu-categories-admin.js"></script>
   <script src="js/menu-admin.js"></script>
   <script>
     (async function () {

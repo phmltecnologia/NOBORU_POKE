@@ -108,17 +108,41 @@ async function requireAdmin(supabase: ReturnType<typeof getServiceClient>, authH
   return profile;
 }
 
-function rowToMenuItem(row: Record<string, unknown>) {
+function slugCategoryId(name: string) {
+  const s = String(name || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return s || "outros";
+}
+
+function rowToCategory(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    name: row.name,
+    sortOrder: Number(row.sort_order) || 0,
+  };
+}
+
+function rowToMenuItem(row: Record<string, unknown>, catName?: string) {
   const item: Record<string, unknown> = {
     id: row.id,
     name: row.name,
     price: Number(row.price),
     desc: row.desc,
-    category: row.category,
+    category: catName || row.category,
+    categoryId: row.category_id || null,
+    categoryName: catName || row.category,
   };
+  if (row.option_layers && Array.isArray(row.option_layers) && row.option_layers.length) {
+    item.optionLayers = row.option_layers;
+  }
   if (row.custom_poke) item.customPoke = true;
   if (row.size_prices) item.sizePrices = row.size_prices;
   if (row.image_url) item.image = row.image_url;
+  if (row.sort_order != null) item.sort_order = row.sort_order;
   return item;
 }
 
@@ -299,14 +323,90 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    if (req.method === "GET" && action === "categories") {
+      const { data, error: catErr } = await supabase
+        .from("menu_categories")
+        .select("*")
+        .eq("active", true)
+        .order("sort_order", { ascending: true });
+      if (catErr) return err(catErr.message, 500);
+      return json({ ok: true, categories: (data || []).map(rowToCategory) });
+    }
+
+    if (req.method === "POST" && action === "categories") {
+      const admin = await requireAdmin(supabase, authHeader);
+      if (!admin) return err("Sem permissão.", 403);
+      const body = await req.json();
+      const name = String(body.name || "").trim();
+      if (!name) return err("Nome da categoria obrigatório.");
+      const id = String(body.id || "").trim() || slugCategoryId(name);
+      const row = {
+        id,
+        name,
+        sort_order: Number(body.sortOrder) || 999,
+        active: true,
+      };
+      const { error: upsErr } = await supabase.from("menu_categories").upsert(row);
+      if (upsErr) return err(upsErr.message, 500);
+      return json({ ok: true, category: rowToCategory(row) });
+    }
+
+    if (req.method === "PATCH" && action.startsWith("categories-")) {
+      const admin = await requireAdmin(supabase, authHeader);
+      if (!admin) return err("Sem permissão.", 403);
+      const catId = decodeURIComponent(action.slice("categories-".length));
+      const body = await req.json();
+      const updates: Record<string, unknown> = {};
+      if (body.name != null) updates.name = String(body.name).trim();
+      if (body.sortOrder != null) updates.sort_order = Number(body.sortOrder);
+      if (Object.keys(updates).length === 0) return err("Nada para atualizar.");
+      const { data: updated, error: upErr } = await supabase
+        .from("menu_categories")
+        .update(updates)
+        .eq("id", catId)
+        .select("*")
+        .single();
+      if (upErr) return err(upErr.message, 500);
+      return json({ ok: true, category: rowToCategory(updated) });
+    }
+
+    if (req.method === "DELETE" && action.startsWith("categories-")) {
+      const admin = await requireAdmin(supabase, authHeader);
+      if (!admin) return err("Sem permissão.", 403);
+      const catId = decodeURIComponent(action.slice("categories-".length));
+      const { count } = await supabase
+        .from("menu_items")
+        .select("*", { count: "exact", head: true })
+        .eq("category_id", catId)
+        .eq("active", true);
+      if (count && count > 0) {
+        return err("Não é possível excluir: há itens nesta categoria.", 400);
+      }
+      await supabase.from("menu_categories").update({ active: false }).eq("id", catId);
+      return json({ ok: true });
+    }
+
     if (req.method === "GET" && action === "menu") {
+      const { data: cats } = await supabase
+        .from("menu_categories")
+        .select("id, name")
+        .eq("active", true);
+      const catMap: Record<string, string> = {};
+      for (const c of cats || []) {
+        catMap[c.id as string] = c.name as string;
+      }
       const { data, error: menuErr } = await supabase
         .from("menu_items")
         .select("*")
         .eq("active", true)
         .order("sort_order", { ascending: true });
       if (menuErr) return err(menuErr.message, 500);
-      return json({ ok: true, items: (data || []).map(rowToMenuItem) });
+      return json({
+        ok: true,
+        items: (data || []).map((row) =>
+          rowToMenuItem(row, catMap[row.category_id as string] || (row.category as string))
+        ),
+      });
     }
 
     if (req.method === "POST" && action === "menu") {
@@ -315,14 +415,27 @@ Deno.serve(async (req) => {
       const body = await req.json();
       const id = String(body.id || "").trim();
       if (!id) return err("ID do item obrigatório.");
+      const categoryId = String(body.categoryId || "").trim();
+      let categoryName = String(body.category || "Outros").trim();
+      if (categoryId) {
+        const { data: catRow } = await supabase
+          .from("menu_categories")
+          .select("name")
+          .eq("id", categoryId)
+          .limit(1);
+        if (catRow?.length) categoryName = catRow[0].name as string;
+      }
+      const optionLayers = Array.isArray(body.optionLayers) ? body.optionLayers : [];
       const row = {
         id,
         name: String(body.name || "").trim(),
         desc: String(body.desc || "").trim(),
-        category: String(body.category || "Outros").trim(),
+        category: categoryName,
+        category_id: categoryId || null,
+        option_layers: optionLayers,
         price: Number(body.price) || 0,
         image_url: body.image ? String(body.image).trim() : null,
-        custom_poke: Boolean(body.customPoke),
+        custom_poke: optionLayers.length > 1,
         size_prices: body.sizePrices || null,
         sort_order: Number(body.sort_order) || 999,
         active: true,
@@ -330,7 +443,7 @@ Deno.serve(async (req) => {
       };
       const { error: upsErr } = await supabase.from("menu_items").upsert(row);
       if (upsErr) return err(upsErr.message, 500);
-      return json({ ok: true, item: rowToMenuItem(row) });
+      return json({ ok: true, item: rowToMenuItem(row, categoryName) });
     }
 
     if (req.method === "DELETE" && action.startsWith("menu-")) {

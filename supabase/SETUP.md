@@ -10,8 +10,9 @@ A Vercel sincroniza automaticamente `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, 
 ## Passo 1 — Rodar o SQL (só uma vez)
 
 1. Abra: [SQL Editor](https://supabase.com/dashboard/project/eqlhhcnrsbyniacrqrvs/sql/new)
-2. Cole **todo** o conteúdo de [`RUN_IN_SQL_EDITOR.sql`](RUN_IN_SQL_EDITOR.sql)
-3. Clique **Run** → deve mostrar **20** itens e **1** admin
+2. Cole **todo** o conteúdo de [`RUN_IN_SQL_EDITOR.sql`](RUN_IN_SQL_EDITOR.sql) → **Run**
+3. Cole **todo** o conteúdo de [`RUN_MIGRATION_002.sql`](RUN_MIGRATION_002.sql) → **Run** (categorias + camadas de seleção)
+4. Deve mostrar categorias ativas e itens com camadas nos pokes
 
 Login admin:
 

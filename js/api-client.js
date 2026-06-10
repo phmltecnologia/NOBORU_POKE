@@ -89,6 +89,28 @@
     fetchMenu: function () {
       return request("menu", { method: "GET", auth: false });
     },
+    fetchCategories: function () {
+      return request("categories", { method: "GET", auth: false });
+    },
+    upsertCategory: function (cat) {
+      return request("categories", {
+        method: "POST",
+        body: {
+          id: cat.id,
+          name: cat.name,
+          sortOrder: cat.sortOrder,
+        },
+      });
+    },
+    patchCategory: function (id, body) {
+      return request("categories-" + encodeURIComponent(String(id)), {
+        method: "PATCH",
+        body: body,
+      });
+    },
+    deleteCategory: function (id) {
+      return request("categories-" + encodeURIComponent(String(id)), { method: "DELETE" });
+    },
     upsertMenuItem: function (item) {
       return request("menu", {
         method: "POST",
@@ -96,11 +118,11 @@
           id: item.id,
           name: item.name,
           desc: item.desc,
-          category: item.category,
+          category: item.categoryName || item.category,
+          categoryId: item.categoryId || null,
+          optionLayers: item.optionLayers || [],
           price: item.price,
           image: item.image || null,
-          customPoke: Boolean(item.customPoke),
-          sizePrices: item.sizePrices || null,
           sort_order: item.sort_order,
         },
       });

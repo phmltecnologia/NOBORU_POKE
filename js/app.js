@@ -9,8 +9,9 @@
   var cart = {};
   /** Itens personalizados / com observação: id → { name, price, desc, detail, note } */
   var cartMeta = {};
-  /** Poke pronto aguardando confirmação no modal de observação */
-  var pendingPremadePoke = null;
+  /** Item com camadas aguardando confirmação no modal de opções */
+  var pendingOptionsItem = null;
+  var pendingOptionsSelections = {};
 
   function getMenu() {
     return window.MENU || [];
@@ -55,14 +56,32 @@
     return out;
   }
 
+  function itemCategoryId(item) {
+    return item.categoryId || item.category || "outros";
+  }
+
+  function itemCategoryName(item) {
+    return item.categoryName || item.category || "Outros";
+  }
+
   function getCategoriesForList(list) {
     var seen = {};
     var out = [];
+    var global = (window.CATEGORIES || []).slice().sort(function (a, b) {
+      return (a.sortOrder || 0) - (b.sortOrder || 0);
+    });
     for (var i = 0; i < list.length; i++) {
-      var c = list[i].category || "Outros";
-      if (!seen[c]) {
-        seen[c] = true;
-        out.push(c);
+      seen[itemCategoryId(list[i])] = itemCategoryName(list[i]);
+    }
+    for (var g = 0; g < global.length; g++) {
+      if (seen[global[g].id]) {
+        out.push({ id: global[g].id, name: global[g].name });
+        delete seen[global[g].id];
+      }
+    }
+    for (var k in seen) {
+      if (Object.prototype.hasOwnProperty.call(seen, k)) {
+        out.push({ id: k, name: seen[k] });
       }
     }
     return out;
@@ -94,9 +113,9 @@
 
     for (var c = 0; c < categories.length; c++) {
       var cat = categories[c];
-      var btn = el("button", "categories__btn", cat);
+      var btn = el("button", "categories__btn", cat.name);
       btn.type = "button";
-      btn.dataset.category = cat;
+      btn.dataset.category = cat.id;
       btn.setAttribute("aria-pressed", c === 0 ? "true" : "false");
       if (c === 0) btn.classList.add("categories__btn--active");
       btn.addEventListener("click", function (ev) {
@@ -114,14 +133,14 @@
     for (var i = 0; i < categories.length; i++) {
       var category = categories[i];
       var sec = el("section", "menu__section");
-      sec.id = "cat-" + slug(category);
-      sec.setAttribute("aria-labelledby", "h-" + slug(category));
-      var h2 = el("h2", "menu__section-title", category);
-      h2.id = "h-" + slug(category);
+      sec.id = "cat-" + slug(category.id);
+      sec.setAttribute("aria-labelledby", "h-" + slug(category.id));
+      var h2 = el("h2", "menu__section-title", category.name);
+      h2.id = "h-" + slug(category.id);
       sec.appendChild(h2);
 
       for (var j = 0; j < list.length; j++) {
-        if ((list[j].category || "Outros") !== category) continue;
+        if (itemCategoryId(list[j]) !== category.id) continue;
         sec.appendChild(renderItem(list[j]));
       }
       sectionRoot.appendChild(sec);
@@ -186,22 +205,19 @@
     var body = el("div", "item__body");
     body.appendChild(el("h3", "item__name", item.name));
     if (item.desc) body.appendChild(el("p", "item__desc", item.desc));
-    if (item.customPoke) {
-      body.appendChild(el("div", "item__price item__price--from", "a partir de " + formatMoney(item.price)));
-    } else if (isPremadePoke(item) && window.getPremadePokePrice) {
+    var hasOpts = window.MenuOptions && MenuOptions.itemHasOptions(item);
+    if (hasOpts) {
       body.appendChild(
-        el("div", "item__price item__price--from", "a partir de " + formatMoney(window.getPremadePokePrice(item, "medio")))
+        el("div", "item__price item__price--from", "a partir de " + formatMoney(MenuOptions.minPriceFromLayers(item)))
       );
     } else {
       body.appendChild(el("div", "item__price", formatMoney(item.price)));
     }
-    var addBtn = el("button", "item__add", item.customPoke ? "Montar" : "Adicionar");
+    var addBtn = el("button", "item__add", hasOpts && (item.optionLayers || []).length > 1 ? "Montar" : hasOpts ? "Escolher" : "Adicionar");
     addBtn.type = "button";
     addBtn.addEventListener("click", function () {
-      if (item.customPoke) {
-        openPokeModal();
-      } else if (isPremadePoke(item)) {
-        openPokeNoteModal(item);
+      if (hasOpts) {
+        openItemOptionsModal(item);
       } else {
         addToCart(item.id, 1);
       }
@@ -302,7 +318,12 @@
     var info = el("div", "cart__row-info");
     var name = el("span", "cart__row-name", line.qty + "× " + line.item.name);
     info.appendChild(name);
-    if (line.item.sizeLabel) {
+    if (line.item.detail) {
+      var detailLines = String(line.item.detail).split("\n");
+      for (var d = 0; d < detailLines.length; d++) {
+        if (detailLines[d]) info.appendChild(el("span", "cart__row-note", detailLines[d]));
+      }
+    } else if (line.item.sizeLabel) {
       info.appendChild(el("span", "cart__row-note", line.item.sizeLabel));
     }
     if (line.item.note) {
@@ -845,348 +866,155 @@
     updateCartUI();
   }
 
-  function addCustomPokeToCart(meta) {
-    var id = "custom-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
-    cartMeta[id] = meta;
-    cart[id] = 1;
+  function addOptionsItemToCart(item, selections, note) {
+    var meta = MenuOptions.buildCartMetaFromSelections(item, selections, note);
+    var sig = JSON.stringify(selections) + (note || "");
+    var cartId = "opt-" + item.id + "-" + sig.length + "-" + Date.now();
+    cartMeta[cartId] = meta;
+    cart[cartId] = 1;
     updateCartUI();
   }
 
-  function isPremadePoke(item) {
-    if (!item || item.customPoke) return false;
-    return String(item.category || "") === "Pokes";
-  }
-
-  function findPokeSize(sizeId) {
-    var cfg = getPokeBuilder();
-    for (var i = 0; i < cfg.sizes.length; i++) {
-      if (cfg.sizes[i].id === sizeId) return cfg.sizes[i];
-    }
-    return null;
-  }
-
-  function premadePokePrice(item, sizeId) {
-    if (window.getPremadePokePrice) return window.getPremadePokePrice(item, sizeId);
-    return item.price;
-  }
-
-  function buildPremadePokeMeta(item, sizeId, note) {
-    var sz = findPokeSize(sizeId);
-    var price = premadePokePrice(item, sizeId);
-    var weight = sz && sz.weight ? " (" + sz.weight + ")" : "";
-    var sizeLabel = sz ? sz.name + weight : sizeId;
-    var n = (note || "").trim();
-    var meta = {
-      id: item.id,
-      name: item.name + " — " + (sz ? sz.name : ""),
-      price: price,
-      desc: item.desc,
-      image: item.image,
-      category: item.category,
-      note: n,
-      sizeId: sizeId,
-      sizeLabel: sizeLabel,
-    };
-    var parts = ["Tamanho: " + sizeLabel];
-    if (n) parts.push("Obs: " + n);
-    meta.detail = parts.join("\n");
-    return meta;
-  }
-
-  function addPremadePokeToCart(item, sizeId, note) {
-    var n = (note || "").trim();
-    var cartId = n
-      ? "note-" + item.id + "-" + sizeId + "-" + Date.now()
-      : "poke-" + item.id + "-" + sizeId;
-    if (!n && cart[cartId]) {
-      cart[cartId] += 1;
-    } else {
-      cartMeta[cartId] = buildPremadePokeMeta(item, sizeId, note);
-      cart[cartId] = (cart[cartId] || 0) + 1;
-    }
-    updateCartUI();
-  }
-
-  function buildPokeNoteSizes(item) {
-    var root = document.getElementById("poke-note-sizes");
-    var cfg = getPokeBuilder();
-    if (!root) return;
-    root.innerHTML = "";
-    for (var s = 0; s < cfg.sizes.length; s++) {
-      var sz = cfg.sizes[s];
-      var lbl = document.createElement("label");
-      lbl.className = "poke-size";
-      var inp = document.createElement("input");
-      inp.type = "radio";
-      inp.name = "poke-note-size";
-      inp.value = sz.id;
-      if (s === 0) inp.checked = true;
-      inp.addEventListener("change", updatePokeNotePricePreview);
-      var box = document.createElement("span");
-      box.className = "poke-size__box";
-      var weight = sz.weight ? " (" + sz.weight + ")" : "";
-      box.innerHTML =
-        "<strong>" +
-        sz.name +
-        weight +
-        "</strong> — " +
-        formatMoney(premadePokePrice(item, sz.id)) +
-        "<small>" +
-        (sz.desc || "") +
-        "</small>";
-      lbl.appendChild(inp);
-      lbl.appendChild(box);
-      root.appendChild(lbl);
-    }
-    updatePokeNotePricePreview();
-  }
-
-  function updatePokeNotePricePreview() {
-    var priceEl = document.getElementById("poke-note-price");
-    var overlay = document.getElementById("poke-note-overlay");
-    if (!priceEl || !overlay || !pendingPremadePoke) return;
-    var sizeEl = overlay.querySelector('input[name="poke-note-size"]:checked');
-    if (!sizeEl) {
-      priceEl.textContent = "";
-      return;
-    }
-    priceEl.textContent = formatMoney(premadePokePrice(pendingPremadePoke, sizeEl.value));
-  }
-
-  function openPokeNoteModal(item) {
-    var overlay = document.getElementById("poke-note-overlay");
-    if (!overlay || !item) return;
-    pendingPremadePoke = item;
-    var title = document.getElementById("poke-note-title");
-    var descWrap = document.getElementById("poke-note-desc-wrap");
-    var descEl = document.getElementById("poke-note-desc");
-    var text = document.getElementById("poke-note-text");
-    if (title) title.textContent = item.name;
-    buildPokeNoteSizes(item);
-    if (descEl && descWrap) {
-      var desc = (item.desc || "").trim();
-      if (desc) {
-        descEl.textContent = desc;
-        descWrap.hidden = false;
+  function readOptionsSelectionsFromDOM() {
+    var overlay = document.getElementById("item-options-overlay");
+    var out = {};
+    if (!overlay || !pendingOptionsItem) return out;
+    var layers = pendingOptionsItem.optionLayers || [];
+    for (var i = 0; i < layers.length; i++) {
+      var layer = layers[i];
+      if (layer.type === "multi") {
+        var boxes = overlay.querySelectorAll('input[data-layer="' + layer.id + '"]:checked');
+        var ids = [];
+        for (var b = 0; b < boxes.length; b++) ids.push(boxes[b].value);
+        out[layer.id] = ids;
       } else {
-        descEl.textContent = "";
-        descWrap.hidden = true;
+        var radio = overlay.querySelector('input[data-layer="' + layer.id + '"]:checked');
+        out[layer.id] = radio ? radio.value : "";
       }
-    }
-    if (text) {
-      text.value = "";
-      text.focus();
-    }
-    overlay.hidden = false;
-    overlay.setAttribute("aria-hidden", "false");
-    requestAnimationFrame(function () {
-      overlay.classList.add("is-open");
-    });
-    document.body.classList.add("poke-note-open");
-  }
-
-  function closePokeNoteModal() {
-    var overlay = document.getElementById("poke-note-overlay");
-    if (!overlay) return;
-    pendingPremadePoke = null;
-    overlay.classList.remove("is-open");
-    document.body.classList.remove("poke-note-open");
-    setTimeout(function () {
-      if (!overlay.classList.contains("is-open")) {
-        overlay.hidden = true;
-        overlay.setAttribute("aria-hidden", "true");
-      }
-    }, 200);
-  }
-
-  function setupPokeNoteModal() {
-    var overlay = document.getElementById("poke-note-overlay");
-    if (!overlay) return;
-    var modal = document.getElementById("poke-note-modal");
-    var closeBtn = document.getElementById("poke-note-close");
-    var cancelBtn = document.getElementById("poke-note-cancel");
-    var addBtn = document.getElementById("poke-note-add");
-    var text = document.getElementById("poke-note-text");
-
-    overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) closePokeNoteModal();
-    });
-    if (modal) {
-      modal.addEventListener("click", function (e) {
-        e.stopPropagation();
-      });
-    }
-    if (closeBtn) closeBtn.addEventListener("click", closePokeNoteModal);
-    if (cancelBtn) cancelBtn.addEventListener("click", closePokeNoteModal);
-    if (addBtn) {
-      addBtn.addEventListener("click", function () {
-        if (!pendingPremadePoke) return;
-        var sizeEl = overlay.querySelector('input[name="poke-note-size"]:checked');
-        if (!sizeEl) return;
-        var note = text ? text.value : "";
-        addPremadePokeToCart(pendingPremadePoke, sizeEl.value, note);
-        closePokeNoteModal();
-      });
-    }
-  }
-
-  function getPokeBuilder() {
-    return window.POKE_BUILDER || { sizes: [], ingredients: [], base: [] };
-  }
-
-  function calcPokePrice(sizeId, selectedIds) {
-    var cfg = getPokeBuilder();
-    var size = null;
-    for (var i = 0; i < cfg.sizes.length; i++) {
-      if (cfg.sizes[i].id === sizeId) {
-        size = cfg.sizes[i];
-        break;
-      }
-    }
-    if (!size) return 0;
-    var total = size.price;
-    var map = {};
-    for (var j = 0; j < cfg.ingredients.length; j++) {
-      map[cfg.ingredients[j].id] = cfg.ingredients[j];
-    }
-    for (var k = 0; k < selectedIds.length; k++) {
-      var ing = map[selectedIds[k]];
-      if (ing) total += ing.price;
-    }
-    return total;
-  }
-
-  function getSelectedPokeIds(root) {
-    var out = [];
-    var boxes = root.querySelectorAll('input[type="checkbox"]:checked');
-    for (var i = 0; i < boxes.length; i++) {
-      out.push(boxes[i].value);
     }
     return out;
   }
 
-  function showPokeMsg(text, isErr) {
-    var msg = document.getElementById("poke-msg");
+  function showOptionsMsg(text, isErr) {
+    var msg = document.getElementById("item-options-msg");
     if (!msg) return;
     msg.textContent = text || "";
     msg.className = "poke-msg" + (text ? (isErr ? " poke-msg--err" : " poke-msg--ok") : "");
   }
 
-  function updatePokePreview() {
-    var overlay = document.getElementById("poke-overlay");
-    if (!overlay) return;
-    var sizeEl = overlay.querySelector('input[name="poke-size"]:checked');
-    var sizeId = sizeEl ? sizeEl.value : "";
-    var selected = getSelectedPokeIds(overlay);
-    var priceEl = document.getElementById("poke-price-preview");
+  function choicePriceLabel(item, layer, choice) {
+    if (!choice) return "";
+    if (layer.priceMode === "replace" || layer.priceMode === "base") {
+      if (choice.price != null) return formatMoney(choice.price);
+    }
+    if (choice.priceDelta != null && choice.priceDelta > 0) return "+" + formatMoney(choice.priceDelta);
+    return "";
+  }
+
+  function updateItemOptionsPreview() {
+    if (!pendingOptionsItem || !window.MenuOptions) return;
+    pendingOptionsSelections = readOptionsSelectionsFromDOM();
+    var priceEl = document.getElementById("item-options-price");
     if (priceEl) {
-      priceEl.textContent = sizeId ? formatMoney(calcPokePrice(sizeId, selected)) : "R$ 0,00";
+      priceEl.textContent = formatMoney(MenuOptions.calcItemOptionsPrice(pendingOptionsItem, pendingOptionsSelections));
     }
+    showOptionsMsg("");
   }
 
-  function buildPokeIngredientUI() {
-    var cfg = getPokeBuilder();
-    var sizesRoot = document.getElementById("poke-sizes");
-    var protRoot = document.getElementById("poke-proteins");
-    var extraRoot = document.getElementById("poke-extras");
-    if (!sizesRoot || !protRoot || !extraRoot) return;
-
-    sizesRoot.innerHTML = "";
-    for (var s = 0; s < cfg.sizes.length; s++) {
-      var sz = cfg.sizes[s];
-      var lbl = document.createElement("label");
-      lbl.className = "poke-size";
-      var inp = document.createElement("input");
-      inp.type = "radio";
-      inp.name = "poke-size";
-      inp.value = sz.id;
-      if (s === 0) inp.checked = true;
-      inp.addEventListener("change", updatePokePreview);
-      var box = document.createElement("span");
-      box.className = "poke-size__box";
-      var weight = sz.weight ? " (" + sz.weight + ")" : "";
-      box.innerHTML =
-        "<strong>" +
-        sz.name +
-        weight +
-        "</strong> — " +
-        formatMoney(sz.price) +
-        "<small>" +
-        sz.desc +
-        "</small>";
-      lbl.appendChild(inp);
-      lbl.appendChild(box);
-      sizesRoot.appendChild(lbl);
+  function onMultiChoiceChange(ev, layer) {
+    var overlay = document.getElementById("item-options-overlay");
+    if (!overlay || !pendingOptionsItem) return;
+    var selections = readOptionsSelectionsFromDOM();
+    var max = MenuOptions.getMaxForLayer(layer, selections, pendingOptionsItem.optionLayers);
+    var ids = MenuOptions.getSelectionArray(layer, selections[layer.id]);
+    if (ids.length > max) {
+      ev.target.checked = false;
+      showOptionsMsg("Máximo de " + max + " em " + layer.label + ".", true);
     }
-
-    protRoot.innerHTML = "";
-    extraRoot.innerHTML = "";
-    for (var i = 0; i < cfg.ingredients.length; i++) {
-      var ing = cfg.ingredients[i];
-      var wrap = document.createElement("label");
-      wrap.className = "poke-ing";
-      var cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.value = ing.id;
-      cb.dataset.group = ing.group;
-      cb.addEventListener("change", function (ev) {
-        var cfg2 = getPokeBuilder();
-        var root = document.getElementById("poke-overlay");
-        var proteins = 0;
-        var extras = 0;
-        var checked = root.querySelectorAll('input[type="checkbox"]:checked');
-        for (var c = 0; c < checked.length; c++) {
-          if (checked[c].dataset.group === "proteina") proteins++;
-          else extras++;
-        }
-        var sizeInp = root.querySelector('input[name="poke-size"]:checked');
-        var maxExtras = 4;
-        if (sizeInp) {
-          for (var x = 0; x < cfg2.sizes.length; x++) {
-            if (cfg2.sizes[x].id === sizeInp.value) maxExtras = cfg2.sizes[x].maxExtras;
-          }
-        }
-        if (ev.target.dataset.group === "proteina" && proteins > cfg2.maxProteins) {
-          ev.target.checked = false;
-          showPokeMsg("Máximo de " + cfg2.maxProteins + " proteínas.", true);
-        } else if (ev.target.dataset.group !== "proteina" && extras > maxExtras) {
-          ev.target.checked = false;
-          showPokeMsg("Limite de " + maxExtras + " complementos para este tamanho.", true);
-        } else {
-          showPokeMsg("");
-        }
-        updatePokePreview();
-      });
-      var span = document.createElement("span");
-      span.className = "poke-ing__box";
-      var extra = ing.price > 0 ? " (+" + formatMoney(ing.price) + ")" : "";
-      span.textContent = ing.name + extra;
-      wrap.appendChild(cb);
-      wrap.appendChild(span);
-      if (ing.group === "proteina") protRoot.appendChild(wrap);
-      else extraRoot.appendChild(wrap);
-    }
-    updatePokePreview();
+    updateItemOptionsPreview();
   }
 
-  function openPokeModal() {
-    var overlay = document.getElementById("poke-overlay");
-    if (!overlay) return;
-    showPokeMsg("");
-    buildPokeIngredientUI();
+  function buildItemOptionsUI(item) {
+    var root = document.getElementById("item-options-layers");
+    if (!root) return;
+    root.innerHTML = "";
+    var layers = item.optionLayers || [];
+    for (var i = 0; i < layers.length; i++) {
+      (function (layer) {
+        var fs = document.createElement("fieldset");
+        fs.className = "poke-fieldset";
+        var legend = document.createElement("legend");
+        legend.className = "poke-legend";
+        legend.textContent = layer.label + (layer.required ? " *" : "");
+        fs.appendChild(legend);
+        var wrap = document.createElement("div");
+        wrap.className = layer.type === "multi" ? "poke-ingredients" : "poke-sizes";
+        for (var c = 0; c < (layer.choices || []).length; c++) {
+          (function (choice, idx) {
+            var lbl = document.createElement("label");
+            lbl.className = layer.type === "multi" ? "poke-ing" : "poke-size";
+            var inp = document.createElement("input");
+            inp.type = layer.type === "multi" ? "checkbox" : "radio";
+            inp.name = "layer-" + layer.id;
+            inp.value = choice.id;
+            inp.dataset.layer = layer.id;
+            if (layer.type === "single" && idx === 0) inp.checked = true;
+            inp.addEventListener("change", function (ev) {
+              if (layer.type === "multi") onMultiChoiceChange(ev, layer);
+              else updateItemOptionsPreview();
+            });
+            var box = document.createElement("span");
+            box.className = layer.type === "multi" ? "poke-ing__box" : "poke-size__box";
+            var priceTxt = choicePriceLabel(item, layer, choice);
+            var sub = choice.subtitle ? " (" + choice.subtitle + ")" : "";
+            box.innerHTML =
+              "<strong>" + choice.label + sub + "</strong>" +
+              (priceTxt ? " — " + priceTxt : "") +
+              (choice.desc ? "<small>" + choice.desc + "</small>" : "");
+            lbl.appendChild(inp);
+            lbl.appendChild(box);
+            wrap.appendChild(lbl);
+          })(layer.choices[c], c);
+        }
+        fs.appendChild(wrap);
+        root.appendChild(fs);
+      })(layers[i]);
+    }
+    pendingOptionsSelections = MenuOptions.defaultSelections(layers);
+    updateItemOptionsPreview();
+  }
+
+  function openItemOptionsModal(item) {
+    var overlay = document.getElementById("item-options-overlay");
+    if (!overlay || !item || !window.MenuOptions) return;
+    pendingOptionsItem = item;
+    var title = document.getElementById("item-options-title");
+    var descEl = document.getElementById("item-options-desc");
+    var noteEl = document.getElementById("item-options-note");
+    if (title) title.textContent = item.name;
+    if (descEl) {
+      var d = (item.desc || "").trim();
+      descEl.textContent = d;
+      descEl.hidden = !d;
+    }
+    if (noteEl) noteEl.value = "";
+    showOptionsMsg("");
+    buildItemOptionsUI(item);
     overlay.hidden = false;
     overlay.setAttribute("aria-hidden", "false");
     requestAnimationFrame(function () {
       overlay.classList.add("is-open");
     });
-    document.body.classList.add("poke-open");
+    document.body.classList.add("item-options-open");
   }
 
-  function closePokeModal() {
-    var overlay = document.getElementById("poke-overlay");
+  function closeItemOptionsModal() {
+    var overlay = document.getElementById("item-options-overlay");
     if (!overlay) return;
+    pendingOptionsItem = null;
+    pendingOptionsSelections = {};
     overlay.classList.remove("is-open");
-    document.body.classList.remove("poke-open");
+    document.body.classList.remove("item-options-open");
     setTimeout(function () {
       if (!overlay.classList.contains("is-open")) {
         overlay.hidden = true;
@@ -1195,74 +1023,37 @@
     }, 200);
   }
 
-  function setupPokeModal() {
-    var overlay = document.getElementById("poke-overlay");
+  function setupItemOptionsModal() {
+    var overlay = document.getElementById("item-options-overlay");
     if (!overlay) return;
-    var closeBtn = document.getElementById("poke-close");
-    var cancelBtn = document.getElementById("poke-cancel");
-    var addBtn = document.getElementById("poke-add");
-    var modal = document.getElementById("poke-modal");
+    var modal = document.getElementById("item-options-modal");
+    var closeBtn = document.getElementById("item-options-close");
+    var cancelBtn = document.getElementById("item-options-cancel");
+    var addBtn = document.getElementById("item-options-add");
+    var noteEl = document.getElementById("item-options-note");
 
     overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) closePokeModal();
+      if (e.target === overlay) closeItemOptionsModal();
     });
     if (modal) {
       modal.addEventListener("click", function (e) {
         e.stopPropagation();
       });
     }
-    if (closeBtn) closeBtn.addEventListener("click", closePokeModal);
-    if (cancelBtn) cancelBtn.addEventListener("click", closePokeModal);
-
+    if (closeBtn) closeBtn.addEventListener("click", closeItemOptionsModal);
+    if (cancelBtn) cancelBtn.addEventListener("click", closeItemOptionsModal);
     if (addBtn) {
       addBtn.addEventListener("click", function () {
-        var cfg = getPokeBuilder();
-        var sizeEl = overlay.querySelector('input[name="poke-size"]:checked');
-        if (!sizeEl) {
-          showPokeMsg("Escolha um tamanho.", true);
+        if (!pendingOptionsItem) return;
+        var selections = readOptionsSelectionsFromDOM();
+        var v = MenuOptions.validateSelections(pendingOptionsItem, selections);
+        if (!v.ok) {
+          showOptionsMsg(v.error, true);
           return;
         }
-        var sizeId = sizeEl.value;
-        var size = null;
-        for (var i = 0; i < cfg.sizes.length; i++) {
-          if (cfg.sizes[i].id === sizeId) size = cfg.sizes[i];
-        }
-        var selected = getSelectedPokeIds(overlay);
-        var proteins = 0;
-        var map = {};
-        for (var j = 0; j < cfg.ingredients.length; j++) {
-          map[cfg.ingredients[j].id] = cfg.ingredients[j];
-          if (selected.indexOf(cfg.ingredients[j].id) !== -1 && cfg.ingredients[j].group === "proteina") {
-            proteins++;
-          }
-        }
-        if (proteins < 1) {
-          showPokeMsg("Escolha pelo menos uma proteína.", true);
-          return;
-        }
-        var names = [];
-        for (var k = 0; k < selected.length; k++) {
-          if (map[selected[k]]) names.push(map[selected[k]].name);
-        }
-        var descParts = (cfg.base || []).concat(names);
-        var price = calcPokePrice(sizeId, selected);
-        var sizeWeight = size.weight ? " (" + size.weight + ")" : "";
-        var detail =
-          "Tamanho: " +
-          size.name +
-          sizeWeight +
-          "\nIngredientes: " +
-          names.join(", ");
-        addCustomPokeToCart({
-          id: null,
-          name: "Monte seu poke (" + size.name + sizeWeight + ")",
-          price: price,
-          desc: descParts.join(", "),
-          detail: detail,
-          sizeLabel: size.name + sizeWeight,
-          image: "img/produtos/poke-custom.svg",
-        });
-        closePokeModal();
+        var note = noteEl ? noteEl.value : "";
+        addOptionsItemToCart(pendingOptionsItem, selections, note);
+        closeItemOptionsModal();
       });
     }
   }
@@ -1281,8 +1072,7 @@
     setupPayModal();
     setupPixModal();
     setupAddrModal();
-    setupPokeModal();
-    setupPokeNoteModal();
+    setupItemOptionsModal();
   }
 
   if (window.whenMenuReady) {
